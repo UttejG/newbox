@@ -1,0 +1,35 @@
+profiles:
+  - id: developer
+    name: "🏗️ Developer"
+    description: "Full development environment — editors, CLI tools, and essentials"
+    categories:
+      - cli-essentials
+      - text-editors
+      - web-browsers
+      - messaging
+
+  - id: creative
+    name: "🎨 Creative"
+    description: "Media and creative tools with communication apps"
+    categories:
+      - web-browsers
+      - messaging
+
+  - id: minimal
+    name: "⚡ Minimal"
+    description: "Just the essentials — browsers, messaging, and core CLI tools"
+    categories:
+      - cli-essentials
+      - web-browsers
+      - messaging
+
+  - id: full
+    name: "🚀 Full"
+    description: "Everything available for your OS"
+    all_categories: true
+    categories: []
+
+  - id: custom
+    name: "🔧 Custom"
+    description: "Pick exactly what you want"
+    categories: []
