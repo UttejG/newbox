@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/uttejg/newbox/internal/adapter/input/tui"
 	"github.com/uttejg/newbox/internal/adapter/output/catalogprovider"
 	"github.com/uttejg/newbox/internal/adapter/output/detector"
 	"github.com/uttejg/newbox/internal/core/domain"
@@ -13,6 +15,9 @@ import (
 )
 
 func main() {
+	dryRun := flag.Bool("dry-run", false, "Simulate installation without executing commands")
+	flag.Parse()
+
 	d := &detector.SystemDetector{}
 	platform, err := d.Detect()
 	if err != nil {
@@ -20,12 +25,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(os.Args) > 1 && os.Args[1] == "list" {
-		runList(platform, os.Args[2:])
+	args := flag.Args()
+	if len(args) > 0 && args[0] == "list" {
+		runList(platform, args[1:])
 		return
 	}
 
-	fmt.Println(detector.FormatDetectionInfo(platform))
+	// Launch TUI
+	catalogSvc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
+	app := tui.NewApp(platform, catalogSvc, *dryRun)
+
+	p := tea.NewProgram(app, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
+		os.Exit(1)
+	}
+
+	appModel := finalModel.(*tui.AppModel)
+	sel := appModel.FinalSelection()
+	if sel != nil && sel.TotalCount() > 0 {
+		fmt.Printf("\nSelected %d tools:\n", sel.TotalCount())
+		for catID, tools := range sel.ToolsByCategory {
+			fmt.Printf("  %s:\n", catID)
+			for _, t := range tools {
+				fmt.Printf("    • %s\n", t.Name)
+			}
+		}
+	}
 }
 
 func runList(platform *domain.Platform, args []string) {
