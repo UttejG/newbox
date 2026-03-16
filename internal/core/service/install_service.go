@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
@@ -12,12 +13,13 @@ import (
 type InstallService struct {
 	pkgMgr  port.PackageManager
 	checker port.SystemChecker
+	store   port.StateStore // may be nil for no-resume mode
 	dryRun  bool
 }
 
-// NewInstallService creates an InstallService.
-func NewInstallService(pkgMgr port.PackageManager, checker port.SystemChecker, dryRun bool) *InstallService {
-	return &InstallService{pkgMgr: pkgMgr, checker: checker, dryRun: dryRun}
+// NewInstallService creates an InstallService. Pass nil for store to disable resume support.
+func NewInstallService(pkgMgr port.PackageManager, checker port.SystemChecker, store port.StateStore, dryRun bool) *InstallService {
+	return &InstallService{pkgMgr: pkgMgr, checker: checker, store: store, dryRun: dryRun}
 }
 
 func (s *InstallService) Preflight(ctx context.Context) (*domain.PreflightResult, error) {
@@ -87,10 +89,34 @@ func (s *InstallService) Plan(ctx context.Context, selection *domain.UserSelecti
 }
 
 func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, progress chan<- domain.ProgressEvent) error {
+	// Load or initialise state for resume tracking.
+	var state *domain.InstallState
+	if s.store != nil {
+		loaded, err := s.store.Load()
+		if err == nil && loaded != nil {
+			state = loaded
+		}
+	}
+	if state == nil {
+		state = &domain.InstallState{
+			StartedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+	}
+
 	steps := plan.PendingSteps()
 	total := len(steps)
 
 	for i, step := range steps {
+		// Resume: skip tools already completed in a previous run.
+		if state.IsCompleted(step.Tool.Name) {
+			if progress != nil {
+				step.Status = domain.StatusDone
+				progress <- domain.ProgressEvent{Step: step, Index: i, Total: total}
+			}
+			continue
+		}
+
 		if progress != nil {
 			step.Status = domain.StatusInstalling
 			progress <- domain.ProgressEvent{Step: step, Index: i, Total: total}
@@ -104,13 +130,23 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 		if err != nil {
 			step.Status = domain.StatusFailed
 			step.Error = err
+			state.FailedIDs = append(state.FailedIDs, step.Tool.Name)
 		} else {
 			step.Status = domain.StatusDone
+			state.MarkCompleted(step.Tool.Name)
+			if s.store != nil {
+				_ = s.store.Save(state)
+			}
 		}
 
 		if progress != nil {
 			progress <- domain.ProgressEvent{Step: step, Index: i, Total: total}
 		}
+	}
+
+	// Clear persisted state once everything has run.
+	if s.store != nil {
+		_ = s.store.Clear()
 	}
 
 	return nil
@@ -122,6 +158,9 @@ func (s *InstallService) buildCommandString(ref *domain.PackageRef) string {
 	}
 	if ref.Formula != "" {
 		return "brew install " + ref.Formula
+	}
+	if ref.MAS != "" {
+		return "mas install " + ref.MAS
 	}
 	return ""
 }

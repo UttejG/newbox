@@ -26,6 +26,7 @@ func TestInstallService_Preflight_AllOK(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{AvailableResult: true},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
 	)
 	result, err := svc.Preflight(context.Background())
@@ -87,6 +88,7 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 			svc := service.NewInstallService(
 				&testutil.FakePackageManager{},
 				&tt.checker,
+				nil,
 				false,
 			)
 			result, err := svc.Preflight(context.Background())
@@ -113,6 +115,7 @@ func TestInstallService_Plan_DryRun(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{},
 		&testutil.FakeSystemChecker{},
+		nil,
 		true, // dry-run
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
@@ -141,6 +144,7 @@ func TestInstallService_Plan_SkipsInstalled(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{InstalledTools: map[string]bool{"git": true}},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
@@ -163,6 +167,7 @@ func TestInstallService_Plan_PendingWhenNotInstalled(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{InstalledTools: map[string]bool{}},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
@@ -186,6 +191,7 @@ func TestInstallService_Plan_SkipsToolWithNoRef(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
@@ -205,7 +211,7 @@ func TestInstallService_Execute_InstallsPendingSteps(t *testing.T) {
 		{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}},
 	}
 	fake := &testutil.FakePackageManager{}
-	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, false)
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, nil, false)
 
 	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
 	if err != nil {
@@ -228,6 +234,7 @@ func TestInstallService_Execute_EmitsProgressEvents(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
 	)
 	plan, _ := svc.Plan(context.Background(), makeSelection(tool))
@@ -258,7 +265,7 @@ func TestInstallService_Execute_EmitsProgressEvents(t *testing.T) {
 func TestInstallService_Execute_DryRun(t *testing.T) {
 	tool := domain.Tool{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}}
 	fake := &testutil.FakePackageManager{}
-	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, true)
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, nil, true)
 	plan, _ := svc.Plan(context.Background(), makeSelection(tool))
 
 	if err := svc.Execute(context.Background(), plan, nil); err != nil {

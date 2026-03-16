@@ -97,6 +97,34 @@ func (f *FakeCatalogProvider) LoadProfiles() ([]domain.Profile, error) {
 	return f.Profiles, nil
 }
 
+// FakeStateStore is a test double for port.StateStore.
+type FakeStateStore struct {
+	State   *domain.InstallState
+	SaveErr error
+	LoadErr error
+}
+
+func (f *FakeStateStore) Save(state *domain.InstallState) error {
+	if f.SaveErr != nil {
+		return f.SaveErr
+	}
+	f.State = state
+	return nil
+}
+
+func (f *FakeStateStore) Load() (*domain.InstallState, error) {
+	return f.State, f.LoadErr
+}
+
+func (f *FakeStateStore) Clear() error {
+	f.State = nil
+	return nil
+}
+
+func (f *FakeStateStore) Exists() bool {
+	return f.State != nil
+}
+
 // NewTestTool creates a Tool available on the given OSes for testing.
 func NewTestTool(name string, oses ...domain.OS) domain.Tool {
 	t := domain.Tool{Name: name, Description: "test tool " + name}

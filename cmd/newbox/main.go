@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/uttejg/newbox/internal/adapter/output/detector"
 	"github.com/uttejg/newbox/internal/adapter/output/pkgmgr"
 	"github.com/uttejg/newbox/internal/adapter/output/runner"
+	"github.com/uttejg/newbox/internal/adapter/output/statestore"
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
 	"github.com/uttejg/newbox/internal/core/service"
@@ -46,10 +48,33 @@ func main() {
 		cmdRunner = &runner.ExecRunner{}
 	}
 
+	// Wire state store for resume support.
+	store, err := statestore.NewFileStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not init state store: %v\n", err)
+	}
+
+	// Offer resume if a previous install was interrupted.
+	if store != nil && store.Exists() {
+		savedState, _ := store.Load()
+		if savedState != nil && len(savedState.CompletedIDs) > 0 {
+			fmt.Fprintf(os.Stderr, "\nPrevious install found (%d tools completed). Resume? [Y/n]: ",
+				len(savedState.CompletedIDs))
+			scanner := bufio.NewScanner(os.Stdin)
+			scanner.Scan()
+			answer := strings.TrimSpace(scanner.Text())
+			if strings.EqualFold(answer, "n") {
+				_ = store.Clear()
+			}
+		}
+	}
+
 	// Wire adapters.
 	brew := pkgmgr.NewBrew(cmdRunner)
+	mas := pkgmgr.NewMAS(cmdRunner)
+	composite := pkgmgr.NewComposite(brew, mas)
 	syschecker := &checker.SystemChecker{Runner: cmdRunner}
-	installSvc := service.NewInstallService(brew, syschecker, *dryRun)
+	installSvc := service.NewInstallService(composite, syschecker, store, *dryRun)
 	catalogSvc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
 
 	// Non-interactive summary mode.

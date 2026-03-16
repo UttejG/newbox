@@ -60,6 +60,30 @@ type ProgressEvent struct {
 	Total int
 }
 
+// InstallState persists between runs for resume support.
+type InstallState struct {
+	CompletedIDs []string  `json:"completed_ids"` // tool names already installed
+	FailedIDs    []string  `json:"failed_ids"`    // tool names that failed
+	StartedAt    time.Time `json:"started_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func (s *InstallState) IsCompleted(toolID string) bool {
+	for _, id := range s.CompletedIDs {
+		if id == toolID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *InstallState) MarkCompleted(toolID string) {
+	if !s.IsCompleted(toolID) {
+		s.CompletedIDs = append(s.CompletedIDs, toolID)
+		s.UpdatedAt = time.Now()
+	}
+}
+
 // PreflightResult captures system readiness.
 type PreflightResult struct {
 	InternetOK       bool
