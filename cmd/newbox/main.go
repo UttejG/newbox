@@ -22,11 +22,24 @@ import (
 	"github.com/uttejg/newbox/internal/core/service"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	dryRun := flag.Bool("dry-run", false, "Simulate installation without executing commands")
 	summary := flag.Bool("summary", false, "Print a text summary of the install plan (requires --dry-run)")
 	jsonOutput := flag.Bool("json", false, "Output as JSON (use with --dry-run)")
+	showVersion := flag.Bool("version", false, "Print version information")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("newbox %s (commit: %s, built: %s)\n", version, commit, date)
+		return
+	}
+
 
 	d := &detector.SystemDetector{}
 	platform, err := d.Detect()
