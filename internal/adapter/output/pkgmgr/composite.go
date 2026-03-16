@@ -83,6 +83,13 @@ func (c *CompositeManager) managerFor(ref domain.PackageRef) port.PackageManager
 			}
 		}
 	}
+	if ref.Winget != "" {
+		for _, m := range c.managers {
+			if m.Name() == "winget" {
+				return m
+			}
+		}
+	}
 	if ref.Flatpak != "" {
 		for _, m := range c.managers {
 			if m.Name() == "flatpak" {

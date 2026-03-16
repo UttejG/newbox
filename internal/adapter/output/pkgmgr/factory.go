@@ -7,11 +7,15 @@ import (
 
 // NewForPlatform returns the appropriate PackageManager for the given platform.
 // On macOS it returns a composite of brew+mas.
+// On Windows it returns WingetManager.
 // On Linux it returns the native manager (apt/dnf/pacman) plus flatpak as fallback.
 func NewForPlatform(platform *domain.Platform, runner port.CommandRunner) port.PackageManager {
 	switch platform.OS {
 	case domain.OSMacOS:
 		return NewComposite(NewBrew(runner), NewMAS(runner))
+
+	case domain.OSWindows:
+		return NewWinget(runner)
 
 	case domain.OSLinux:
 		var managers []port.PackageManager
