@@ -62,5 +62,33 @@ func (c *CompositeManager) managerFor(ref domain.PackageRef) port.PackageManager
 			}
 		}
 	}
+	if ref.Apt != "" {
+		for _, m := range c.managers {
+			if m.Name() == "apt" {
+				return m
+			}
+		}
+	}
+	if ref.Dnf != "" {
+		for _, m := range c.managers {
+			if m.Name() == "dnf" {
+				return m
+			}
+		}
+	}
+	if ref.Pacman != "" {
+		for _, m := range c.managers {
+			if m.Name() == "pacman" {
+				return m
+			}
+		}
+	}
+	if ref.Flatpak != "" {
+		for _, m := range c.managers {
+			if m.Name() == "flatpak" {
+				return m
+			}
+		}
+	}
 	return nil
 }

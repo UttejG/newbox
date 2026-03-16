@@ -70,11 +70,9 @@ func main() {
 	}
 
 	// Wire adapters.
-	brew := pkgmgr.NewBrew(cmdRunner)
-	mas := pkgmgr.NewMAS(cmdRunner)
-	composite := pkgmgr.NewComposite(brew, mas)
+	pkgManager := pkgmgr.NewForPlatform(platform, cmdRunner)
 	syschecker := &checker.SystemChecker{Runner: cmdRunner}
-	installSvc := service.NewInstallService(composite, syschecker, store, *dryRun)
+	installSvc := service.NewInstallService(pkgManager, syschecker, store, *dryRun)
 	catalogSvc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
 
 	// Non-interactive summary mode.
