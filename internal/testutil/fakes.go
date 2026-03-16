@@ -2,10 +2,79 @@
 package testutil
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/uttejg/newbox/internal/core/domain"
+	"github.com/uttejg/newbox/internal/core/port"
 )
+
+// RunCall records a single call to FakeRunner.Run.
+type RunCall struct {
+	Cmd  string
+	Args []string
+}
+
+// FakeRunner records Run calls and returns preconfigured results.
+type FakeRunner struct {
+	Results []*port.RunResult
+	Err     error
+	Calls   []RunCall
+}
+
+func (f *FakeRunner) Run(_ context.Context, cmd string, args []string) (*port.RunResult, error) {
+	f.Calls = append(f.Calls, RunCall{Cmd: cmd, Args: args})
+	if f.Err != nil {
+		return nil, f.Err
+	}
+	if len(f.Results) > 0 {
+		r := f.Results[0]
+		f.Results = f.Results[1:]
+		return r, nil
+	}
+	return &port.RunResult{Command: cmd + " " + strings.Join(args, " ")}, nil
+}
+
+// FakePackageManager is a test double for port.PackageManager.
+type FakePackageManager struct {
+	AvailableResult bool
+	InstalledTools  map[string]bool
+	InstallErr      error
+	InstallCalls    []domain.PackageRef
+}
+
+func (f *FakePackageManager) Name() string { return "fake" }
+
+func (f *FakePackageManager) IsAvailable(_ context.Context) bool { return f.AvailableResult }
+
+func (f *FakePackageManager) IsInstalled(_ context.Context, ref domain.PackageRef) (bool, error) {
+	key := ref.Formula
+	if ref.Cask != "" {
+		key = ref.Cask
+	}
+	return f.InstalledTools[key], nil
+}
+
+func (f *FakePackageManager) Install(_ context.Context, ref domain.PackageRef) (*port.RunResult, error) {
+	f.InstallCalls = append(f.InstallCalls, ref)
+	return &port.RunResult{}, f.InstallErr
+}
+
+// FakeSystemChecker is a test double for port.SystemChecker.
+type FakeSystemChecker struct {
+	InternetErr error
+	DiskErr     error
+	PkgMgrErr   error
+}
+
+func (f *FakeSystemChecker) CheckInternet(_ context.Context) error { return f.InternetErr }
+
+func (f *FakeSystemChecker) CheckDiskSpace(_ context.Context, _ int) error { return f.DiskErr }
+
+func (f *FakeSystemChecker) CheckPackageManager(_ context.Context, _ string) error {
+	return f.PkgMgrErr
+}
 
 // FakeCatalogProvider implements port.CatalogProvider with in-memory data.
 type FakeCatalogProvider struct {

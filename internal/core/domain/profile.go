@@ -12,7 +12,8 @@ type Profile struct {
 
 // UserSelection holds the final choices the user made in the TUI.
 type UserSelection struct {
-	Profile     *Profile
+	Profile         *Profile
+	Platform        *Platform        // the detected platform at selection time
 	ToolsByCategory map[string][]Tool // category ID → selected tools
 }
 
