@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -24,6 +25,7 @@ import (
 func main() {
 	dryRun := flag.Bool("dry-run", false, "Simulate installation without executing commands")
 	summary := flag.Bool("summary", false, "Print a text summary of the install plan (requires --dry-run)")
+	jsonOutput := flag.Bool("json", false, "Output as JSON (use with --dry-run)")
 	flag.Parse()
 
 	d := &detector.SystemDetector{}
@@ -76,8 +78,8 @@ func main() {
 	catalogSvc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
 
 	// Non-interactive summary mode.
-	if *dryRun && *summary {
-		runSummary(platform, catalogSvc, installSvc)
+	if *dryRun && (*summary || *jsonOutput) {
+		runSummary(platform, catalogSvc, installSvc, *jsonOutput)
 		return
 	}
 
@@ -105,7 +107,7 @@ func main() {
 }
 
 // runSummary prints a dry-run install plan for all tools on the current platform.
-func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, installSvc port.InstallService) {
+func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, installSvc port.InstallService, asJSON bool) {
 	cats, err := catalogSvc.GetCategories(platform.OS)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading catalog: %v\n", err)
@@ -125,6 +127,55 @@ func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, insta
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error building plan: %v\n", err)
 		os.Exit(1)
+	}
+
+	if asJSON {
+		type jsonStep struct {
+			Tool    string `json:"tool"`
+			Command string `json:"command"`
+			Status  string `json:"status"`
+		}
+		type jsonSummary struct {
+			WouldInstall     int `json:"would_install"`
+			AlreadyInstalled int `json:"already_installed"`
+		}
+		type jsonOutput struct {
+			Platform string      `json:"platform"`
+			Profile  string      `json:"profile"`
+			Steps    []jsonStep  `json:"steps"`
+			Summary  jsonSummary `json:"summary"`
+		}
+
+		steps := make([]jsonStep, 0, len(plan.Steps))
+		for _, step := range plan.Steps {
+			status := "dry_run"
+			if step.Status == domain.StatusSkipped {
+				status = "already_installed"
+			}
+			steps = append(steps, jsonStep{
+				Tool:    step.Tool.Name,
+				Command: step.Command,
+				Status:  status,
+			})
+		}
+
+		out := jsonOutput{
+			Platform: platform.Summary(),
+			Profile:  "all",
+			Steps:    steps,
+			Summary: jsonSummary{
+				WouldInstall:     len(plan.PendingSteps()),
+				AlreadyInstalled: len(plan.SkippedSteps()),
+			},
+		}
+
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(out); err != nil {
+			fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	fmt.Printf("Dry-run install plan for %s\n\n", platform.Summary())
