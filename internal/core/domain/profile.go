@@ -35,5 +35,9 @@ func (s *UserSelection) AllTools() []Tool {
 
 // TotalCount returns the total number of selected tools.
 func (s *UserSelection) TotalCount() int {
-	return len(s.AllTools())
+	n := 0
+	for _, ts := range s.ToolsByCategory {
+		n += len(ts)
+	}
+	return n
 }

@@ -132,33 +132,24 @@ func toPackageRef(r *yamlPkgRef) domain.PackageRef {
 	if r == nil {
 		return nil
 	}
-	ref := domain.PackageRef{}
-	if r.Formula != "" {
-		ref[domain.PackageManagerFormula] = r.Formula
+	// Allocate lazily — most tools only have entries for one or two managers.
+	var ref domain.PackageRef
+	add := func(pm domain.PackageManager, v string) {
+		if v == "" {
+			return
+		}
+		if ref == nil {
+			ref = make(domain.PackageRef)
+		}
+		ref[pm] = v
 	}
-	if r.Cask != "" {
-		ref[domain.PackageManagerCask] = r.Cask
-	}
-	if r.MAS != "" {
-		ref[domain.PackageManagerMAS] = r.MAS
-	}
-	if r.Winget != "" {
-		ref[domain.PackageManagerWinget] = r.Winget
-	}
-	if r.Apt != "" {
-		ref[domain.PackageManagerApt] = r.Apt
-	}
-	if r.Dnf != "" {
-		ref[domain.PackageManagerDnf] = r.Dnf
-	}
-	if r.Pacman != "" {
-		ref[domain.PackageManagerPacman] = r.Pacman
-	}
-	if r.Flatpak != "" {
-		ref[domain.PackageManagerFlatpak] = r.Flatpak
-	}
-	if len(ref) == 0 {
-		return nil
-	}
+	add(domain.PackageManagerFormula, r.Formula)
+	add(domain.PackageManagerCask, r.Cask)
+	add(domain.PackageManagerMAS, r.MAS)
+	add(domain.PackageManagerWinget, r.Winget)
+	add(domain.PackageManagerApt, r.Apt)
+	add(domain.PackageManagerDnf, r.Dnf)
+	add(domain.PackageManagerPacman, r.Pacman)
+	add(domain.PackageManagerFlatpak, r.Flatpak)
 	return ref
 }

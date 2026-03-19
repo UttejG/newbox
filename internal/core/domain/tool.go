@@ -39,7 +39,9 @@ func (t *Tool) IsAvailableOn(os OS) bool {
 	return !t.PackageRefFor(os).IsEmpty()
 }
 
-// PackageRefFor returns the PackageRef for the given OS, or nil if not available.
+// PackageRefFor returns the PackageRef for the given OS.
+// The result may be nil or empty; use IsEmpty() to test whether the tool
+// is actually available on that OS.
 func (t *Tool) PackageRefFor(os OS) PackageRef {
 	switch os {
 	case OSMacOS:
