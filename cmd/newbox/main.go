@@ -29,10 +29,11 @@ func main() {
 }
 
 func runList(platform *domain.Platform, args []string) {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	categoryFlag := fs.String("category", "", "Filter to a specific category ID")
 	if err := fs.Parse(args); err != nil {
-		os.Exit(1)
+		fs.Usage()
+		os.Exit(2)
 	}
 
 	svc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})

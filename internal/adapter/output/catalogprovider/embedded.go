@@ -2,6 +2,8 @@
 package catalogprovider
 
 import (
+	"fmt"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/uttejg/newbox/catalog"
@@ -60,7 +62,7 @@ type EmbeddedProvider struct{}
 func (p *EmbeddedProvider) LoadCategories() ([]domain.Category, error) {
 	var raw yamlCatalog
 	if err := yaml.Unmarshal(catalog.ToolsYAML, &raw); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing embedded tools.yaml: %w", err)
 	}
 
 	categories := make([]domain.Category, 0, len(raw.Categories))
@@ -92,7 +94,7 @@ func (p *EmbeddedProvider) LoadCategories() ([]domain.Category, error) {
 func (p *EmbeddedProvider) LoadProfiles() ([]domain.Profile, error) {
 	var raw yamlProfiles
 	if err := yaml.Unmarshal(catalog.ProfilesYAML, &raw); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing embedded profiles.yaml: %w", err)
 	}
 
 	profiles := make([]domain.Profile, 0, len(raw.Profiles))

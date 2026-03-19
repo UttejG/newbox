@@ -6,8 +6,8 @@ type Profile struct {
 	ID          string
 	Name        string // includes emoji, e.g. "🏗️ Developer"
 	Description string
-	Categories  []string // category IDs; empty means "all"
-	AllCategories bool   // true for the "full" profile
+	Categories  []string // category IDs to pre-check; nil/empty means none pre-selected
+	AllCategories bool   // when true, all categories are pre-checked (overrides Categories)
 }
 
 // UserSelection holds the final choices the user made in the TUI.

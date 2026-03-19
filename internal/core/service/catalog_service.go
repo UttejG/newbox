@@ -50,7 +50,8 @@ func (s *CatalogService) GetProfile(id string) (*domain.Profile, error) {
 
 	for i := range profiles {
 		if profiles[i].ID == id {
-			return &profiles[i], nil
+			copy := profiles[i]
+			return &copy, nil
 		}
 	}
 	return nil, fmt.Errorf("profile %q not found", id)
