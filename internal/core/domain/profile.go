@@ -1,5 +1,7 @@
 package domain
 
+import "sort"
+
 // Profile is a named preset that maps to a set of category IDs.
 // When selected in the TUI, its categories are pre-checked.
 type Profile struct {
@@ -16,11 +18,17 @@ type UserSelection struct {
 	ToolsByCategory map[string][]Tool // category ID → selected tools
 }
 
-// AllTools returns a flat list of all selected tools.
+// AllTools returns a flat list of all selected tools in deterministic category order.
 func (s *UserSelection) AllTools() []Tool {
+	keys := make([]string, 0, len(s.ToolsByCategory))
+	for k := range s.ToolsByCategory {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	var tools []Tool
-	for _, ts := range s.ToolsByCategory {
-		tools = append(tools, ts...)
+	for _, k := range keys {
+		tools = append(tools, s.ToolsByCategory[k]...)
 	}
 	return tools
 }

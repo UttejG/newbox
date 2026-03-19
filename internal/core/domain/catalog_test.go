@@ -13,10 +13,10 @@ func TestPackageRef_IsEmpty(t *testing.T) {
 		want bool
 	}{
 		{"empty ref", domain.PackageRef{}, true},
-		{"formula set", domain.PackageRef{Formula: "git"}, false},
-		{"cask set", domain.PackageRef{Cask: "signal"}, false},
-		{"winget set", domain.PackageRef{Winget: "OpenWhisperSystems.Signal"}, false},
-		{"apt set", domain.PackageRef{Apt: "signal-desktop"}, false},
+		{"formula set", domain.PackageRef{domain.PackageManagerFormula: "git"}, false},
+		{"cask set", domain.PackageRef{domain.PackageManagerCask: "signal"}, false},
+		{"winget set", domain.PackageRef{domain.PackageManagerWinget: "OpenWhisperSystems.Signal"}, false},
+		{"apt set", domain.PackageRef{domain.PackageManagerApt: "signal-desktop"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -30,8 +30,8 @@ func TestPackageRef_IsEmpty(t *testing.T) {
 func TestTool_IsAvailableOn(t *testing.T) {
 	tool := domain.Tool{
 		Name:    "Signal",
-		MacOS:   &domain.PackageRef{Cask: "signal"},
-		Linux:   &domain.PackageRef{Apt: "signal-desktop"},
+		MacOS:   domain.PackageRef{domain.PackageManagerCask: "signal"},
+		Linux:   domain.PackageRef{domain.PackageManagerApt: "signal-desktop"},
 		Windows: nil,
 	}
 
@@ -55,22 +55,22 @@ func TestTool_IsAvailableOn(t *testing.T) {
 }
 
 func TestTool_PackageRefFor(t *testing.T) {
-	macRef := &domain.PackageRef{Cask: "signal"}
-	linuxRef := &domain.PackageRef{Apt: "signal-desktop"}
+	macRef := domain.PackageRef{domain.PackageManagerCask: "signal"}
+	linuxRef := domain.PackageRef{domain.PackageManagerApt: "signal-desktop"}
 	tool := domain.Tool{
 		Name:  "Signal",
 		MacOS: macRef,
 		Linux: linuxRef,
 	}
 
-	if got := tool.PackageRefFor(domain.OSMacOS); got != macRef {
+	if got := tool.PackageRefFor(domain.OSMacOS); got[domain.PackageManagerCask] != macRef[domain.PackageManagerCask] {
 		t.Errorf("PackageRefFor(macOS) returned wrong ref")
 	}
-	if got := tool.PackageRefFor(domain.OSLinux); got != linuxRef {
+	if got := tool.PackageRefFor(domain.OSLinux); got[domain.PackageManagerApt] != linuxRef[domain.PackageManagerApt] {
 		t.Errorf("PackageRefFor(linux) returned wrong ref")
 	}
-	if got := tool.PackageRefFor(domain.OSWindows); got != nil {
-		t.Errorf("PackageRefFor(windows) = %v, want nil", got)
+	if got := tool.PackageRefFor(domain.OSWindows); !got.IsEmpty() {
+		t.Errorf("PackageRefFor(windows) = %v, want empty", got)
 	}
 }
 
@@ -79,9 +79,9 @@ func TestCategory_FilteredTools(t *testing.T) {
 		ID:   "messaging",
 		Name: "💬 Messaging",
 		Tools: []domain.Tool{
-			{Name: "Signal", MacOS: &domain.PackageRef{Cask: "signal"}, Linux: &domain.PackageRef{Apt: "signal-desktop"}},
-			{Name: "iMessage", MacOS: &domain.PackageRef{MAS: "12345"}}, // macOS only
-			{Name: "WinTool", Windows: &domain.PackageRef{Winget: "Win.Tool"}}, // windows only
+			{Name: "Signal", MacOS: domain.PackageRef{domain.PackageManagerCask: "signal"}, Linux: domain.PackageRef{domain.PackageManagerApt: "signal-desktop"}},
+			{Name: "iMessage", MacOS: domain.PackageRef{domain.PackageManagerMAS: "12345"}}, // macOS only
+			{Name: "WinTool", Windows: domain.PackageRef{domain.PackageManagerWinget: "Win.Tool"}}, // windows only
 		},
 	}
 
@@ -105,7 +105,7 @@ func TestCategory_IsAvailableOn(t *testing.T) {
 	cat := domain.Category{
 		ID: "macos-only",
 		Tools: []domain.Tool{
-			{Name: "Alfred", MacOS: &domain.PackageRef{Cask: "alfred"}},
+			{Name: "Alfred", MacOS: domain.PackageRef{domain.PackageManagerCask: "alfred"}},
 		},
 	}
 

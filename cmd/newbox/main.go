@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -21,26 +22,30 @@ func main() {
 	}
 
 	if len(os.Args) > 1 && os.Args[1] == "list" {
-		runList(platform, os.Args[2:])
+		if err := runList(platform, os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 
 	fmt.Println(detector.FormatDetectionInfo(platform))
 }
 
-func runList(platform *domain.Platform, args []string) {
+func runList(platform *domain.Platform, args []string) error {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	categoryFlag := fs.String("category", "", "Filter to a specific category ID")
 	if err := fs.Parse(args); err != nil {
-		fs.Usage()
-		os.Exit(2)
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
 	}
 
 	svc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
 	categories, err := svc.GetCategories(platform.OS)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading catalog: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("loading catalog: %w", err)
 	}
 
 	fmt.Printf("Available tools on %s\n\n", platform.Summary())
@@ -61,6 +66,5 @@ func runList(platform *domain.Platform, args []string) {
 		}
 		fmt.Println()
 	}
+	return nil
 }
-
-
