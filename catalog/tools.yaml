@@ -1,0 +1,338 @@
+categories:
+  - id: messaging
+    name: "💬 Messaging"
+    description: "Chat and messaging applications"
+    tools:
+      - name: Signal
+        description: "Encrypted, privacy-first messaging"
+        website: "https://signal.org"
+        dotfiles_default: true
+        macos:
+          cask: signal
+        windows:
+          winget: OpenWhisperSystems.Signal
+        linux:
+          apt: signal-desktop
+          flatpak: org.signal.Signal
+
+      - name: Telegram
+        description: "Fast, cloud-based messaging"
+        website: "https://telegram.org"
+        dotfiles_default: true
+        macos:
+          cask: telegram
+        windows:
+          winget: Telegram.TelegramDesktop
+        linux:
+          apt: telegram-desktop
+          flatpak: org.telegram.desktop
+
+      - name: WhatsApp
+        description: "WhatsApp desktop client"
+        website: "https://www.whatsapp.com"
+        dotfiles_default: true
+        macos:
+          cask: whatsapp
+        windows:
+          winget: 9NKSQGP7F2NH  # Microsoft Store
+
+      - name: Discord
+        description: "Voice, video, and text chat"
+        website: "https://discord.com"
+        dotfiles_default: true
+        macos:
+          cask: discord
+        windows:
+          winget: Discord.Discord
+        linux:
+          apt: discord
+          flatpak: com.discordapp.Discord
+
+      - name: Slack
+        description: "Team messaging and collaboration"
+        website: "https://slack.com"
+        dotfiles_default: true
+        macos:
+          cask: slack
+        windows:
+          winget: SlackTechnologies.Slack
+        linux:
+          apt: slack-desktop
+          flatpak: com.slack.Slack
+
+      - name: Microsoft Teams
+        description: "Microsoft Teams collaboration"
+        website: "https://teams.microsoft.com"
+        dotfiles_default: true
+        macos:
+          cask: microsoft-teams
+        windows:
+          winget: Microsoft.Teams
+        linux:
+          flatpak: com.microsoft.Teams
+
+      - name: Element
+        description: "Decentralized, open-source Matrix client"
+        website: "https://element.io"
+        dotfiles_default: false
+        macos:
+          cask: element
+        windows:
+          winget: Element.Element
+        linux:
+          apt: element-desktop
+          flatpak: im.riot.Riot
+
+  - id: web-browsers
+    name: "🌐 Web Browsers"
+    description: "Web browsers for everyday use"
+    tools:
+      - name: Firefox
+        description: "Open-source browser by Mozilla"
+        website: "https://www.mozilla.org/firefox"
+        dotfiles_default: true
+        macos:
+          cask: firefox
+        windows:
+          winget: Mozilla.Firefox
+        linux:
+          apt: firefox
+          flatpak: org.mozilla.firefox
+
+      - name: Brave
+        description: "Privacy-focused browser"
+        website: "https://brave.com"
+        dotfiles_default: true
+        macos:
+          cask: brave-browser
+        windows:
+          winget: Brave.Brave
+        linux:
+          apt: brave-browser
+          flatpak: com.brave.Browser
+
+      - name: Arc
+        description: "Modern, reimagined browser"
+        website: "https://arc.net"
+        dotfiles_default: true
+        macos:
+          cask: arc
+        windows:
+          winget: TheBrowserCompany.Arc
+
+      - name: Google Chrome
+        description: "Google's web browser"
+        website: "https://www.google.com/chrome"
+        dotfiles_default: false
+        macos:
+          cask: google-chrome
+        windows:
+          winget: Google.Chrome
+        linux:
+          apt: google-chrome-stable
+          flatpak: com.google.Chrome
+
+      - name: Microsoft Edge
+        description: "Microsoft's Chromium-based browser"
+        website: "https://www.microsoft.com/edge"
+        dotfiles_default: true
+        macos:
+          cask: microsoft-edge
+        windows:
+          winget: Microsoft.Edge
+        linux:
+          apt: microsoft-edge-stable
+          flatpak: com.microsoft.Edge
+
+      - name: Tor Browser
+        description: "Anonymous browsing via the Tor network"
+        website: "https://www.torproject.org"
+        dotfiles_default: true
+        macos:
+          cask: tor-browser
+        windows:
+          winget: TorProject.TorBrowser
+        linux:
+          flatpak: org.torproject.torbrowser-launcher
+
+  - id: cli-essentials
+    name: "🔧 CLI Essentials"
+    description: "Essential command-line tools for every developer"
+    tools:
+      - name: git
+        description: "Distributed version control system"
+        website: "https://git-scm.com"
+        dotfiles_default: true
+        macos:
+          formula: git
+        windows:
+          winget: Git.Git
+        linux:
+          apt: git
+          dnf: git
+          pacman: git
+
+      - name: jq
+        description: "Lightweight JSON processor"
+        website: "https://jqlang.github.io/jq"
+        dotfiles_default: true
+        macos:
+          formula: jq
+        windows:
+          winget: jqlang.jq
+        linux:
+          apt: jq
+          dnf: jq
+          pacman: jq
+
+      - name: ripgrep
+        description: "Blazing-fast recursive grep (rg)"
+        website: "https://github.com/BurntSushi/ripgrep"
+        dotfiles_default: false
+        macos:
+          formula: ripgrep
+        windows:
+          winget: BurntSushi.ripgrep.MSVC
+        linux:
+          apt: ripgrep
+          dnf: ripgrep
+          pacman: ripgrep
+
+      - name: fd
+        description: "Fast and user-friendly find alternative"
+        website: "https://github.com/sharkdp/fd"
+        dotfiles_default: false
+        macos:
+          formula: fd
+        windows:
+          winget: sharkdp.fd
+        linux:
+          apt: fd-find
+          dnf: fd-find
+          pacman: fd
+
+      - name: bat
+        description: "cat clone with syntax highlighting"
+        website: "https://github.com/sharkdp/bat"
+        dotfiles_default: false
+        macos:
+          formula: bat
+        windows:
+          winget: sharkdp.bat
+        linux:
+          apt: bat
+          dnf: bat
+          pacman: bat
+
+      - name: eza
+        description: "Modern replacement for ls"
+        website: "https://eza.rocks"
+        dotfiles_default: false
+        macos:
+          formula: eza
+        windows:
+          winget: eza-community.eza
+        linux:
+          apt: eza
+          dnf: eza
+          pacman: eza
+
+      - name: fzf
+        description: "Command-line fuzzy finder"
+        website: "https://github.com/junegunn/fzf"
+        dotfiles_default: false
+        macos:
+          formula: fzf
+        windows:
+          winget: junegunn.fzf
+        linux:
+          apt: fzf
+          dnf: fzf
+          pacman: fzf
+
+      - name: tldr
+        description: "Simplified and community-driven man pages"
+        website: "https://tldr.sh"
+        dotfiles_default: true
+        macos:
+          formula: tldr
+        windows:
+          winget: tldr-pages.tldr
+        linux:
+          apt: tldr
+          dnf: tldr
+          pacman: tldr
+
+      - name: gh
+        description: "GitHub's official CLI tool"
+        website: "https://cli.github.com"
+        dotfiles_default: true
+        macos:
+          formula: gh
+        windows:
+          winget: GitHub.cli
+        linux:
+          apt: gh
+          dnf: gh
+          pacman: github-cli
+
+  - id: text-editors
+    name: "📝 Text Editors"
+    description: "Text editors and lightweight IDEs"
+    tools:
+      - name: VS Code
+        description: "Microsoft's extensible code editor"
+        website: "https://code.visualstudio.com"
+        dotfiles_default: true
+        macos:
+          cask: visual-studio-code
+        windows:
+          winget: Microsoft.VisualStudioCode
+        linux:
+          apt: code
+          flatpak: com.visualstudio.code
+
+      - name: Cursor
+        description: "AI-first code editor"
+        website: "https://cursor.sh"
+        dotfiles_default: true
+        macos:
+          cask: cursor
+        windows:
+          winget: Anysphere.Cursor
+        linux:
+          flatpak: com.cursor.Cursor
+
+      - name: Zed
+        description: "High-performance, multiplayer code editor"
+        website: "https://zed.dev"
+        dotfiles_default: true
+        macos:
+          cask: zed
+        linux:
+          apt: zed
+
+      - name: Neovim
+        description: "Hyperextensible Vim-based text editor"
+        website: "https://neovim.io"
+        dotfiles_default: true
+        macos:
+          formula: neovim
+        windows:
+          winget: Neovim.Neovim
+        linux:
+          apt: neovim
+          dnf: neovim
+          pacman: neovim
+
+      - name: Sublime Text
+        description: "Sophisticated text editor for code"
+        website: "https://www.sublimetext.com"
+        dotfiles_default: false
+        macos:
+          cask: sublime-text
+        windows:
+          winget: SublimeHQ.SublimeText.4
+        linux:
+          apt: sublime-text
+          flatpak: com.sublimetext.three
