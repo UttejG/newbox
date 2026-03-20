@@ -128,7 +128,7 @@ func TestInstallService_Plan_DryRun(t *testing.T) {
 	if plan.Steps[0].Status != domain.StatusDryRun {
 		t.Errorf("status = %q, want %q", plan.Steps[0].Status, domain.StatusDryRun)
 	}
-	if plan.Steps[0].Command != "brew install --cask signal" {
+	if plan.Steps[0].Command != "fake install --cask signal" {
 		t.Errorf("command = %q", plan.Steps[0].Command)
 	}
 }

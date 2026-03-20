@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"syscall"
+	"time"
 
 	"github.com/uttejg/newbox/internal/core/port"
 )
@@ -16,7 +17,7 @@ type SystemChecker struct {
 }
 
 func (c *SystemChecker) CheckInternet(ctx context.Context) error {
-	client := &http.Client{}
+	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, "https://github.com", nil)
 	if err != nil {
 		return fmt.Errorf("building internet check request: %w", err)
@@ -25,7 +26,7 @@ func (c *SystemChecker) CheckInternet(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("no internet connection: %w", err)
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 	return nil
 }
 

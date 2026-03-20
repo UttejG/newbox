@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
@@ -61,7 +62,7 @@ func (s *InstallService) Plan(ctx context.Context, selection *domain.UserSelecti
 		step := domain.ExecutionStep{
 			Tool:    tool,
 			Ref:     *ref,
-			Command: s.buildCommandString(ref),
+			Command: s.pkgMgr.BuildCommand(*ref),
 		}
 
 		if s.dryRun {
@@ -89,8 +90,16 @@ func (s *InstallService) Plan(ctx context.Context, selection *domain.UserSelecti
 func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, progress chan<- domain.ProgressEvent) error {
 	steps := plan.PendingSteps()
 	total := len(steps)
+	var failedTools []string
 
 	for i, step := range steps {
+		// Stop launching new installs if the caller cancelled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		if progress != nil {
 			step.Status = domain.StatusInstalling
 			progress <- domain.ProgressEvent{Step: step, Index: i, Total: total}
@@ -104,6 +113,7 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 		if err != nil {
 			step.Status = domain.StatusFailed
 			step.Error = err
+			failedTools = append(failedTools, step.Tool.Name)
 		} else {
 			step.Status = domain.StatusDone
 		}
@@ -113,15 +123,8 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 		}
 	}
 
+	if len(failedTools) > 0 {
+		return fmt.Errorf("%d tool(s) failed to install: %s", len(failedTools), strings.Join(failedTools, ", "))
+	}
 	return nil
-}
-
-func (s *InstallService) buildCommandString(ref *domain.PackageRef) string {
-	if ref.Cask != "" {
-		return "brew install --cask " + ref.Cask
-	}
-	if ref.Formula != "" {
-		return "brew install " + ref.Formula
-	}
-	return ""
 }
