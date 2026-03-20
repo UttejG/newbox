@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,8 +18,12 @@ const (
 	screenCategories
 	screenTools
 	screenConfirm
+	screenInstall
 	screenDone
 )
+
+// installFinished is sent as a tea.Msg when InstallService.Execute completes.
+type installFinished struct{ err error }
 
 // AppModel is the root Bubbletea model. It owns all screen state and handles transitions.
 type AppModel struct {
@@ -26,14 +31,19 @@ type AppModel struct {
 
 	platform       *domain.Platform
 	catalogService port.CatalogService
+	installSvc     port.InstallService
 	dryRun         bool
 
+	// cancelInstall cancels any in-progress installation goroutine.
+	cancelInstall context.CancelFunc
+
 	// Screen models (created lazily)
-	welcome    screens.WelcomeModel
-	profile    screens.ProfileModel
-	categories screens.CategoriesModel
-	tools      screens.ToolsModel
-	confirm    screens.ConfirmModel
+	welcome      screens.WelcomeModel
+	profile      screens.ProfileModel
+	categories   screens.CategoriesModel
+	tools        screens.ToolsModel
+	confirm      screens.ConfirmModel
+	installModel screens.InstallModel
 
 	// State accumulated across screens
 	selectedProfile    *domain.Profile
@@ -45,11 +55,12 @@ type AppModel struct {
 }
 
 // NewApp creates the root application model.
-func NewApp(platform *domain.Platform, catalogSvc port.CatalogService, dryRun bool) *AppModel {
+func NewApp(platform *domain.Platform, catalogSvc port.CatalogService, installSvc port.InstallService, dryRun bool) *AppModel {
 	return &AppModel{
 		current:        screenWelcome,
 		platform:       platform,
 		catalogService: catalogSvc,
+		installSvc:     installSvc,
 		dryRun:         dryRun,
 		welcome:        screens.NewWelcome(platform, dryRun),
 	}
@@ -60,8 +71,11 @@ func (m *AppModel) Init() tea.Cmd {
 }
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle global quit
+	// Handle global quit — cancel any in-progress install before exiting.
 	if km, ok := msg.(tea.KeyMsg); ok && (km.String() == "ctrl+c") {
+		if m.cancelInstall != nil {
+			m.cancelInstall()
+		}
 		return m, tea.Quit
 	}
 
@@ -76,6 +90,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateTools(msg)
 	case screenConfirm:
 		return m.updateConfirm(msg)
+	case screenInstall:
+		return m.updateInstall(msg)
 	}
 	return m, nil
 }
@@ -96,6 +112,8 @@ func (m *AppModel) View() string {
 		return m.tools.View()
 	case screenConfirm:
 		return m.confirm.View()
+	case screenInstall:
+		return m.installModel.View()
 	case screenDone:
 		return m.doneView()
 	}
@@ -172,6 +190,7 @@ func (m *AppModel) transitionToTools() (tea.Model, tea.Cmd) {
 		// Skip tools, go straight to confirm with empty selection
 		m.selection = &domain.UserSelection{
 			Profile:         m.selectedProfile,
+			Platform:        m.platform,
 			ToolsByCategory: map[string][]domain.Tool{},
 		}
 		m.confirm = screens.NewConfirm(m.selection, m.allCategories)
@@ -190,6 +209,7 @@ func (m *AppModel) updateTools(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if ev, ok := msg.(screens.ToolsDone); ok {
 		m.selection = &domain.UserSelection{
 			Profile:         m.selectedProfile,
+			Platform:        m.platform,
 			ToolsByCategory: ev.ByCategory,
 		}
 		m.confirm = screens.NewConfirm(m.selection, m.allCategories)
@@ -207,6 +227,9 @@ func (m *AppModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.confirm = updated.(screens.ConfirmModel)
 
 	if _, ok := msg.(screens.ConfirmProceed); ok {
+		if m.installSvc != nil {
+			return m.transitionToInstall()
+		}
 		m.current = screenDone
 		return m, tea.Quit
 	}
@@ -220,6 +243,35 @@ func (m *AppModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.current = screenTools
 		return m, m.tools.Init()
 	}
+	return m, cmd
+}
+
+func (m *AppModel) transitionToInstall() (tea.Model, tea.Cmd) {
+	ctx, cancel := context.WithCancel(context.Background())
+	m.cancelInstall = cancel
+
+	plan, err := m.installSvc.Plan(ctx, m.selection)
+	if err != nil {
+		cancel()
+		m.err = err
+		return m, nil
+	}
+
+	ch := make(chan domain.ProgressEvent, 100)
+	m.installModel = screens.NewInstall(plan, m.dryRun, ch)
+	m.current = screenInstall
+
+	go func() {
+		defer close(ch)
+		_ = m.installSvc.Execute(ctx, plan, ch)
+	}()
+
+	return m, m.installModel.Init()
+}
+
+func (m *AppModel) updateInstall(msg tea.Msg) (tea.Model, tea.Cmd) {
+	updated, cmd := m.installModel.Update(msg)
+	m.installModel = updated.(screens.InstallModel)
 	return m, cmd
 }
 
