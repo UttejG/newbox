@@ -158,6 +158,10 @@ func runList(platform *domain.Platform, args []string) error {
 
 // runSummary prints a dry-run install plan for all tools on the current platform.
 func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, installSvc port.InstallService) {
+	if installSvc == nil {
+		fmt.Fprintf(os.Stderr, "Error: installation is not supported on %s\n", platform.OS)
+		os.Exit(1)
+	}
 	cats, err := catalogSvc.GetCategories(platform.OS)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading catalog: %v\n", err)

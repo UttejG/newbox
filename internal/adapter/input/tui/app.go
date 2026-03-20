@@ -22,6 +22,9 @@ const (
 	screenDone
 )
 
+// installFinished is sent as a tea.Msg when InstallService.Execute completes.
+type installFinished struct{ err error }
+
 // AppModel is the root Bubbletea model. It owns all screen state and handles transitions.
 type AppModel struct {
 	current screen

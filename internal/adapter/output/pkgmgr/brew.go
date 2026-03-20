@@ -41,8 +41,13 @@ func (b *BrewManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (b
 	if res != nil && res.DryRun {
 		return false, nil
 	}
-	if err != nil || (res != nil && res.ExitCode != 0) {
-		return false, nil // not installed
+	if res != nil && res.ExitCode != 0 {
+		// brew list exits non-zero when the formula/cask is not installed — not an error.
+		return false, nil
+	}
+	if err != nil {
+		// Command failed to execute entirely (brew not on PATH, context cancelled, etc.).
+		return false, fmt.Errorf("checking %s: %w", ref.Formula+ref.Cask, err)
 	}
 	return true, nil
 }
