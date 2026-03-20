@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
 )
@@ -42,33 +44,35 @@ func (m ToolsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		currentCat := m.categories[m.catIndex]
-		switch msg.String() {
-		case "up", "k":
+		switch {
+		case key.Matches(msg, keys.Checklist.Up):
 			if m.cursors[m.catIndex] > 0 {
 				m.cursors[m.catIndex]--
 			}
-		case "down", "j":
+		case key.Matches(msg, keys.Checklist.Down):
 			if m.cursors[m.catIndex] < len(currentCat.Tools)-1 {
 				m.cursors[m.catIndex]++
 			}
-		case " ":
+		case key.Matches(msg, keys.Checklist.Toggle):
 			idx := m.cursors[m.catIndex]
-			m.checked[m.catIndex][idx] = !m.checked[m.catIndex][idx]
-		case "tab", "enter":
+			if len(m.checked[m.catIndex]) > 0 {
+				m.checked[m.catIndex][idx] = !m.checked[m.catIndex][idx]
+			}
+		case key.Matches(msg, keys.Checklist.Next):
 			if m.catIndex < len(m.categories)-1 {
 				m.catIndex++
 			} else {
 				return m, func() tea.Msg { return ToolsDone{ByCategory: m.selectedByCategory()} }
 			}
-		case "shift+tab":
+		case key.Matches(msg, keys.Checklist.Prev):
 			if m.catIndex > 0 {
 				m.catIndex--
 			} else {
 				return m, func() tea.Msg { return ToolsBack{} }
 			}
-		case "esc":
+		case key.Matches(msg, keys.Checklist.Back):
 			return m, func() tea.Msg { return ToolsBack{} }
-		case "q", "ctrl+c":
+		case key.Matches(msg, keys.Checklist.Quit):
 			return m, tea.Quit
 		}
 	}
