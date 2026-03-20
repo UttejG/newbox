@@ -75,7 +75,7 @@ func (m ConfirmModel) View() string {
 
 	var proceedHint string
 	if total > 0 {
-		proceedHint = lipgloss.NewStyle().Foreground(styles.Success).Bold(true).Render("  Enter: Install")
+		proceedHint = lipgloss.NewStyle().Foreground(styles.Success).Bold(true).Render("  Enter: Continue")
 	} else {
 		proceedHint = lipgloss.NewStyle().Foreground(styles.Muted).Render("  (select tools first)")
 	}

@@ -40,6 +40,12 @@ var (
 			Foreground(Muted).
 			MarginTop(1)
 
+	// ItemNameStyle and ItemDescStyle are used in list/checklist item rendering.
+	// Defined here to avoid allocating new Style values on every View() call.
+	ItemNameStyle = lipgloss.NewStyle().Foreground(Text)
+	ItemDescStyle = lipgloss.NewStyle().Foreground(Muted)
+	ItemCountStyle = lipgloss.NewStyle().Foreground(Muted)
+
 	BorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(Primary).

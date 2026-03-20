@@ -5,7 +5,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
@@ -76,7 +75,7 @@ func (m CategoriesModel) View() string {
 	var items string
 	for i, cat := range m.categories {
 		cursor := "  "
-		nameStyle := lipgloss.NewStyle().Foreground(styles.Text)
+		nameStyle := styles.ItemNameStyle
 
 		if i == m.cursor {
 			cursor = styles.SelectedStyle.Render("▸ ")
@@ -90,7 +89,7 @@ func (m CategoriesModel) View() string {
 			checkbox = styles.UncheckedStyle.Render("[ ] ")
 		}
 
-		toolCount := lipgloss.NewStyle().Foreground(styles.Muted).Render(
+		toolCount := styles.ItemCountStyle.Render(
 			fmt.Sprintf(" (%d tools)", len(cat.Tools)),
 		)
 

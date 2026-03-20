@@ -5,7 +5,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
@@ -85,7 +84,7 @@ func (m ToolsModel) View() string {
 	}
 
 	cat := m.categories[m.catIndex]
-	progress := lipgloss.NewStyle().Foreground(styles.Muted).Render(
+	progress := styles.ItemCountStyle.Render(
 		fmt.Sprintf("Category %d of %d", m.catIndex+1, len(m.categories)),
 	)
 	title := styles.TitleStyle.Render(cat.Name)
@@ -95,8 +94,7 @@ func (m ToolsModel) View() string {
 	var items string
 	for i, tool := range cat.Tools {
 		cursor := "  "
-		nameStyle := lipgloss.NewStyle().Foreground(styles.Text)
-		descStyle := lipgloss.NewStyle().Foreground(styles.Muted)
+		nameStyle := styles.ItemNameStyle
 
 		if i == m.cursors[m.catIndex] {
 			cursor = styles.SelectedStyle.Render("▸ ")
@@ -116,7 +114,7 @@ func (m ToolsModel) View() string {
 		}
 
 		items += cursor + checkbox + nameStyle.Render(tool.Name) + dotfilesMark + "\n"
-		items += "      " + descStyle.Render(tool.Description) + "\n"
+		items += "      " + styles.ItemDescStyle.Render(tool.Description) + "\n"
 	}
 
 	help := styles.HelpStyle.Render("↑/↓ navigate  •  Space toggle  •  Tab/Enter next category  •  Shift+Tab prev  •  Esc back")

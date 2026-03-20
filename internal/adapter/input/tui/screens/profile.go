@@ -3,7 +3,6 @@ package screens
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
@@ -56,8 +55,7 @@ func (m ProfileModel) View() string {
 	var items string
 	for i, p := range m.profiles {
 		cursor := "  "
-		nameStyle := lipgloss.NewStyle().Foreground(styles.Text)
-		descStyle := lipgloss.NewStyle().Foreground(styles.Muted)
+		nameStyle := styles.ItemNameStyle
 
 		if i == m.cursor {
 			cursor = styles.SelectedStyle.Render("▸ ")
@@ -65,7 +63,7 @@ func (m ProfileModel) View() string {
 		}
 
 		items += cursor + nameStyle.Render(p.Name) + "\n"
-		items += "    " + descStyle.Render(p.Description) + "\n\n"
+		items += "    " + styles.ItemDescStyle.Render(p.Description) + "\n\n"
 	}
 
 	help := styles.HelpStyle.Render("↑/↓ navigate  •  Enter select  •  Esc back  •  q quit")

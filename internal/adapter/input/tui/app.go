@@ -103,7 +103,6 @@ func (m *AppModel) View() string {
 }
 
 func (m *AppModel) updateWelcome(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
 	updated, cmd := m.welcome.Update(msg)
 	m.welcome = updated.(screens.WelcomeModel)
 
@@ -114,6 +113,7 @@ func (m *AppModel) updateWelcome(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) transitionToProfile() (tea.Model, tea.Cmd) {
+	m.err = nil
 	profiles, err := m.catalogService.GetAllProfiles()
 	if err != nil {
 		m.err = err
@@ -141,6 +141,7 @@ func (m *AppModel) updateProfile(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) transitionToCategories() (tea.Model, tea.Cmd) {
+	m.err = nil
 	cats, err := m.catalogService.GetCategories(m.platform.OS)
 	if err != nil {
 		m.err = err
