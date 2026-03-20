@@ -1,22 +1,26 @@
 package domain
 
-// PackageRef holds the package identifier(s) for a specific package manager type.
-type PackageRef struct {
-	Formula string // brew formula (e.g. "git")
-	Cask    string // brew cask (e.g. "signal")
-	MAS     string // Mac App Store numeric ID (e.g. "409203825")
-	Winget  string // winget package ID (e.g. "OpenWhisperSystems.Signal")
-	Apt     string // apt package name
-	Dnf     string // dnf package name
-	Pacman  string // pacman package name
-	Flatpak string // flatpak app ID (Linux fallback)
-}
+// PackageManager identifies a specific package manager.
+type PackageManager string
+
+const (
+	PackageManagerFormula PackageManager = "formula" // Homebrew formula
+	PackageManagerCask    PackageManager = "cask"    // Homebrew cask
+	PackageManagerMAS     PackageManager = "mas"     // Mac App Store
+	PackageManagerWinget  PackageManager = "winget"  // Windows Package Manager
+	PackageManagerApt     PackageManager = "apt"     // Debian/Ubuntu
+	PackageManagerDnf     PackageManager = "dnf"     // Fedora/RHEL
+	PackageManagerPacman  PackageManager = "pacman"  // Arch Linux
+	PackageManagerFlatpak PackageManager = "flatpak" // Flatpak (Linux fallback)
+)
+
+// PackageRef maps package managers to their identifier for a given tool.
+// Using a map means new package managers can be added without touching the domain struct.
+type PackageRef map[PackageManager]string
 
 // IsEmpty returns true if no package reference is set.
 func (p PackageRef) IsEmpty() bool {
-	return p.Formula == "" && p.Cask == "" && p.MAS == "" &&
-		p.Winget == "" && p.Apt == "" && p.Dnf == "" &&
-		p.Pacman == "" && p.Flatpak == ""
+	return len(p) == 0
 }
 
 // Tool represents a single installable application or CLI tool.
@@ -25,27 +29,20 @@ type Tool struct {
 	Description     string
 	Website         string
 	DotfilesDefault bool // pre-selected because it's in the existing dotfiles
-	MacOS           *PackageRef
-	Windows         *PackageRef
-	Linux           *PackageRef
+	MacOS           PackageRef
+	Windows         PackageRef
+	Linux           PackageRef
 }
 
 // IsAvailableOn returns true if this tool has a package mapping for the given OS.
 func (t *Tool) IsAvailableOn(os OS) bool {
-	switch os {
-	case OSMacOS:
-		return t.MacOS != nil && !t.MacOS.IsEmpty()
-	case OSWindows:
-		return t.Windows != nil && !t.Windows.IsEmpty()
-	case OSLinux:
-		return t.Linux != nil && !t.Linux.IsEmpty()
-	default:
-		return false
-	}
+	return !t.PackageRefFor(os).IsEmpty()
 }
 
-// PackageRefFor returns the PackageRef for the given OS, or nil if not available.
-func (t *Tool) PackageRefFor(os OS) *PackageRef {
+// PackageRefFor returns the PackageRef for the given OS.
+// The result may be nil or empty; use IsEmpty() to test whether the tool
+// is actually available on that OS.
+func (t *Tool) PackageRefFor(os OS) PackageRef {
 	switch os {
 	case OSMacOS:
 		return t.MacOS

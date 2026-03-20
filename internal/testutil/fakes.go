@@ -32,7 +32,7 @@ func (f *FakeCatalogProvider) LoadProfiles() ([]domain.Profile, error) {
 func NewTestTool(name string, oses ...domain.OS) domain.Tool {
 	t := domain.Tool{Name: name, Description: "test tool " + name}
 	for _, os := range oses {
-		ref := &domain.PackageRef{Formula: "test-" + name}
+		ref := domain.PackageRef{domain.PackageManagerFormula: "test-" + name}
 		switch os {
 		case domain.OSMacOS:
 			t.MacOS = ref

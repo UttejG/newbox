@@ -21,7 +21,7 @@ test-update-golden:
 coverage:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
-	open coverage.html
+	@echo "Coverage report: coverage.html"
 
 lint:
 	go vet ./...
