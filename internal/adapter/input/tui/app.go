@@ -210,7 +210,14 @@ func (m *AppModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 	if _, ok := msg.(screens.ConfirmBack); ok {
-		return m.transitionToTools()
+		// If we skipped tools because no categories were selected,
+		// go back to categories instead of looping to confirm again.
+		if len(m.selectedCategories) == 0 {
+			return m.transitionToCategories()
+		}
+		// Reuse the existing ToolsModel so the user's checkbox state is preserved.
+		m.current = screenTools
+		return m, m.tools.Init()
 	}
 	return m, cmd
 }

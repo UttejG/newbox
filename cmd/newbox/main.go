@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,6 +17,22 @@ import (
 )
 
 func main() {
+	// Detect subcommand before parsing flags so list-specific flags
+	// are not consumed by the top-level flagset.
+	if len(os.Args) > 1 && os.Args[1] == "list" {
+		d := &detector.SystemDetector{}
+		platform, err := d.Detect()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error detecting platform: %v\n", err)
+			os.Exit(1)
+		}
+		if err := runList(platform, os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	dryRun := flag.Bool("dry-run", false, "Simulate installation without executing commands")
 	flag.Parse()
 
@@ -24,15 +41,6 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error detecting platform: %v\n", err)
 		os.Exit(1)
-	}
-
-	args := flag.Args()
-	if len(args) > 0 && args[0] == "list" {
-		if err := runList(platform, args[1:]); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		return
 	}
 
 	// Launch TUI
@@ -50,9 +58,14 @@ func main() {
 	sel := appModel.FinalSelection()
 	if sel != nil && sel.TotalCount() > 0 {
 		fmt.Printf("\nSelected %d tools:\n", sel.TotalCount())
-		for catID, tools := range sel.ToolsByCategory {
+		catIDs := make([]string, 0, len(sel.ToolsByCategory))
+		for catID := range sel.ToolsByCategory {
+			catIDs = append(catIDs, catID)
+		}
+		sort.Strings(catIDs)
+		for _, catID := range catIDs {
 			fmt.Printf("  %s:\n", catID)
-			for _, t := range tools {
+			for _, t := range sel.ToolsByCategory[catID] {
 				fmt.Printf("    • %s\n", t.Name)
 			}
 		}
