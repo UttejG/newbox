@@ -127,9 +127,10 @@ newbox --dry-run --json
 
 ```json
 {
-  "platform": {"os": "macos", "arch": "arm64", "package_manager": "brew"},
+  "platform": "macOS ARM64",
+  "profile": "all",
   "steps": [
-    {"tool": "Signal", "command": "brew install --cask signal", "status": "would_install"},
+    {"tool": "Signal", "command": "brew install --cask signal", "status": "dry_run"},
     {"tool": "git",    "command": "brew install git",           "status": "already_installed"}
   ],
   "summary": {"would_install": 12, "already_installed": 5}

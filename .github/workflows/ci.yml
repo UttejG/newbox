@@ -17,12 +17,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go: ["1.26.1"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: go.mod
           cache: true
       - name: Run tests
         run: make test
@@ -42,7 +41,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26.1"
+          go-version-file: go.mod
           cache: true
       - uses: goreleaser/goreleaser-action@v6
         with:

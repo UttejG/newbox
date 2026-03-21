@@ -48,11 +48,15 @@ try {
     Write-Err "Download failed: $_"
 }
 
-# Verify checksum
+# Verify checksum (anchored regex; errors on missing or ambiguous entry)
 Write-Info "Verifying checksum..."
-$Expected = (Get-Content $ChecksumsPath | Where-Object { $_ -match [regex]::Escape($FileName) }) -split '\s+' | Select-Object -First 1
+$pattern = "^\s*(?<hash>[0-9A-Fa-f]+)\s+\*?$([regex]::Escape($FileName))\s*$"
+$matchLines = Select-String -Path $ChecksumsPath -Pattern $pattern
+if (-not $matchLines) { Write-Err "Expected checksum for $FileName not found in checksums.txt" }
+if ($matchLines.Count -gt 1) { Write-Err "Multiple checksum entries found for $FileName in checksums.txt" }
+$Expected = ($matchLines | Select-Object -First 1).Matches[0].Groups['hash'].Value.ToLower()
 $Actual = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLower()
-if ($Actual -ne $Expected.ToLower()) {
+if ($Actual -ne $Expected) {
     Write-Err "Checksum mismatch! Expected $Expected, got $Actual"
 }
 

@@ -38,5 +38,5 @@ snapshot: ## Build snapshot release locally
 install-goreleaser: ## Install goreleaser
 	go install github.com/goreleaser/goreleaser/v2@latest
 
-release-dry-run: ## Dry-run the release process
-	goreleaser check
+release-dry-run: ## Dry-run the release pipeline (builds all targets, skips publish)
+	goreleaser release --skip=publish --clean

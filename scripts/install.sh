@@ -49,7 +49,7 @@ URL="https://github.com/${REPO}/releases/download/${VERSION}/${FILENAME}"
 
 # Download to temp dir
 TMP=$(mktemp -d)
-trap "rm -rf $TMP" EXIT
+trap 'rm -rf "$TMP"' EXIT
 
 if command -v curl &>/dev/null; then
   curl -fsSL "$URL" -o "$TMP/$FILENAME"
@@ -59,12 +59,26 @@ else
   wget -qO "$TMP/checksums.txt" "https://github.com/${REPO}/releases/download/${VERSION}/checksums.txt"
 fi
 
-# Verify checksum
+# Verify checksum (anchored match; errors on missing or ambiguous entry)
 info "Verifying checksum..."
 if command -v sha256sum &>/dev/null; then
-  (cd "$TMP" && grep "$FILENAME" checksums.txt | sha256sum -c --status) || error "Checksum verification failed!"
+  (
+    cd "$TMP"
+    pattern="^[0-9a-fA-F]{64}  ${FILENAME}$"
+    match_count=$(grep -cE "$pattern" checksums.txt || true)
+    if [ "$match_count" -eq 0 ]; then error "No checksum entry found for $FILENAME"; fi
+    if [ "$match_count" -gt 1 ]; then error "Multiple checksum entries found for $FILENAME"; fi
+    grep -E "$pattern" checksums.txt | sha256sum -c --status
+  ) || error "Checksum verification failed!"
 elif command -v shasum &>/dev/null; then
-  (cd "$TMP" && grep "$FILENAME" checksums.txt | sed 's/ \*/ /' | shasum -a 256 -c --status) || error "Checksum verification failed!"
+  (
+    cd "$TMP"
+    pattern="^[0-9a-fA-F]{64}  ${FILENAME}$"
+    match_count=$(grep -cE "$pattern" checksums.txt || true)
+    if [ "$match_count" -eq 0 ]; then error "No checksum entry found for $FILENAME"; fi
+    if [ "$match_count" -gt 1 ]; then error "Multiple checksum entries found for $FILENAME"; fi
+    grep -E "$pattern" checksums.txt | sed 's/  / */' | shasum -a 256 -c --status
+  ) || error "Checksum verification failed!"
 else
   warn "sha256sum/shasum not found; skipping checksum verification"
 fi

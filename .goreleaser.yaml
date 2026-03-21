@@ -1,10 +1,6 @@
 # .goreleaser.yaml
 version: 2
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: newbox
     main: ./cmd/newbox
