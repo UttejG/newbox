@@ -30,6 +30,9 @@ func (c *CompositeManager) SubManagers() []port.PackageManager {
 }
 
 func (c *CompositeManager) IsAvailable(ctx context.Context) error {
+	if len(c.managers) == 0 {
+		return fmt.Errorf("no supported package manager found for this platform")
+	}
 	var errs []string
 	for _, m := range c.managers {
 		if err := m.IsAvailable(ctx); err != nil {

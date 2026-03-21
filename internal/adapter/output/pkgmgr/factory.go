@@ -9,7 +9,8 @@ import (
 
 // NewForPlatform returns the appropriate PackageManager for the given platform.
 // On macOS it returns a composite of brew+mas.
-// On Linux it returns the native manager (apt/dnf/pacman) plus flatpak as fallback.
+// On Linux it returns the detected native manager (apt/dnf/pacman) and, if flatpak
+// is installed on the system, adds it as a fallback for cross-distro packages.
 func NewForPlatform(platform *domain.Platform, runner port.CommandRunner) port.PackageManager {
 	switch platform.OS {
 	case domain.OSMacOS:
