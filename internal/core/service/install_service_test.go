@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/uttejg/newbox/internal/core/domain"
@@ -24,9 +25,11 @@ func makeSelection(tools ...domain.Tool) *domain.UserSelection {
 
 func TestInstallService_Preflight_AllOK(t *testing.T) {
 	svc := service.NewInstallService(
-		&testutil.FakePackageManager{AvailableResult: true},
+		&testutil.FakePackageManager{},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
+		io.Discard,
 	)
 	result, err := svc.Preflight(context.Background())
 	if err != nil {
@@ -53,6 +56,7 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 	tests := []struct {
 		name       string
 		checker    testutil.FakeSystemChecker
+		pkg        testutil.FakePackageManager
 		wantErrors int
 		wantOK     bool
 	}{
@@ -69,14 +73,19 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 			wantOK:     false,
 		},
 		{
-			name:       "pkgmgr failure",
-			checker:    testutil.FakeSystemChecker{PkgMgrErr: errTest},
+			name: "pkgmgr failure",
+			pkg: testutil.FakePackageManager{
+				IsAvailableFunc: func(_ context.Context) error { return errTest },
+			},
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
-			name:       "all failures",
-			checker:    testutil.FakeSystemChecker{InternetErr: errTest, DiskErr: errTest, PkgMgrErr: errTest},
+			name:    "all failures",
+			checker: testutil.FakeSystemChecker{InternetErr: errTest, DiskErr: errTest},
+			pkg: testutil.FakePackageManager{
+				IsAvailableFunc: func(_ context.Context) error { return errTest },
+			},
 			wantErrors: 3,
 			wantOK:     false,
 		},
@@ -85,9 +94,11 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := service.NewInstallService(
-				&testutil.FakePackageManager{},
+				&tt.pkg,
 				&tt.checker,
+				nil,
 				false,
+				io.Discard,
 			)
 			result, err := svc.Preflight(context.Background())
 			if err != nil {
@@ -113,7 +124,9 @@ func TestInstallService_Plan_DryRun(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{},
 		&testutil.FakeSystemChecker{},
+		nil,
 		true, // dry-run
+		io.Discard,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
 	if err != nil {
@@ -141,7 +154,9 @@ func TestInstallService_Plan_SkipsInstalled(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{InstalledTools: map[string]bool{"git": true}},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
+		io.Discard,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
 	if err != nil {
@@ -163,7 +178,9 @@ func TestInstallService_Plan_PendingWhenNotInstalled(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{InstalledTools: map[string]bool{}},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
+		io.Discard,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
 	if err != nil {
@@ -186,7 +203,9 @@ func TestInstallService_Plan_SkipsToolWithNoRef(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
+		io.Discard,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
 	if err != nil {
@@ -205,7 +224,7 @@ func TestInstallService_Execute_InstallsPendingSteps(t *testing.T) {
 		{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}},
 	}
 	fake := &testutil.FakePackageManager{}
-	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, false)
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, nil, false, io.Discard)
 
 	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
 	if err != nil {
@@ -228,7 +247,9 @@ func TestInstallService_Execute_EmitsProgressEvents(t *testing.T) {
 	svc := service.NewInstallService(
 		&testutil.FakePackageManager{},
 		&testutil.FakeSystemChecker{},
+		nil,
 		false,
+		io.Discard,
 	)
 	plan, _ := svc.Plan(context.Background(), makeSelection(tool))
 
@@ -258,7 +279,7 @@ func TestInstallService_Execute_EmitsProgressEvents(t *testing.T) {
 func TestInstallService_Execute_DryRun(t *testing.T) {
 	tool := domain.Tool{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}}
 	fake := &testutil.FakePackageManager{}
-	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, true)
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, nil, true, io.Discard)
 	plan, _ := svc.Plan(context.Background(), makeSelection(tool))
 
 	if err := svc.Execute(context.Background(), plan, nil); err != nil {
@@ -267,6 +288,100 @@ func TestInstallService_Execute_DryRun(t *testing.T) {
 	// In dry-run, Install is still called (via DryRunRunner in production; fake here)
 	if len(fake.InstallCalls) != 1 {
 		t.Errorf("expected 1 install call, got %d", len(fake.InstallCalls))
+	}
+}
+
+func TestInstallService_Execute_Resume_SkipsCompleted(t *testing.T) {
+	tools := []domain.Tool{
+		{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}},
+		{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}},
+	}
+	fake := &testutil.FakePackageManager{}
+	store := &testutil.FakeStateStore{
+		State: &domain.InstallState{CompletedIDs: []string{"git"}},
+	}
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, false, io.Discard)
+
+	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+
+	if err := svc.Execute(context.Background(), plan, nil); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	// Only "signal" should be installed; "git" was already completed.
+	if len(fake.InstallCalls) != 1 {
+		t.Errorf("expected 1 install call (skipping completed), got %d", len(fake.InstallCalls))
+	}
+	if len(fake.InstallCalls) == 1 && fake.InstallCalls[0].Cask != "signal" {
+		t.Errorf("expected install for signal, got %+v", fake.InstallCalls[0])
+	}
+}
+
+func TestInstallService_Execute_StateNotClearedOnFailure(t *testing.T) {
+	tools := []domain.Tool{
+		{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}},
+		{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}},
+	}
+
+	// First run: second tool fails — state must NOT be cleared.
+	failOnSecond := 0
+	fake := &testutil.FakePackageManager{
+		InstallErr: nil, // will be overridden via custom logic
+	}
+	_ = failOnSecond
+	fakeWithErr := &testutil.FakePackageManager{}
+	store := &testutil.FakeStateStore{}
+	svc := service.NewInstallService(fakeWithErr, &testutil.FakeSystemChecker{}, store, false, io.Discard)
+
+	plan, _ := svc.Plan(context.Background(), makeSelection(tools...))
+
+	// Simulate second tool failure by setting InstallErr before Execute.
+	fakeWithErr.InstallErr = errTest
+
+	_ = svc.Execute(context.Background(), plan, nil)
+
+	if store.ClearCalled {
+		t.Error("expected ClearCalled = false when install fails")
+	}
+
+	// Second run: both succeed — state MUST be cleared.
+	store2 := &testutil.FakeStateStore{}
+	fakeOK := &testutil.FakePackageManager{}
+	svc2 := service.NewInstallService(fakeOK, &testutil.FakeSystemChecker{}, store2, false, io.Discard)
+	plan2, _ := svc2.Plan(context.Background(), makeSelection(tools...))
+
+	if err := svc2.Execute(context.Background(), plan2, nil); err != nil {
+		t.Fatalf("Execute() error on success run = %v", err)
+	}
+	if !store2.ClearCalled {
+		t.Error("expected ClearCalled = true when all installs succeed")
+	}
+	_ = fake
+}
+
+func TestInstallService_Execute_DryRun_NoStateStore(t *testing.T) {
+	tool := domain.Tool{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}}
+	fake := &testutil.FakePackageManager{}
+	store := &testutil.FakeStateStore{}
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, true, io.Discard)
+
+	plan, _ := svc.Plan(context.Background(), makeSelection(tool))
+
+	if err := svc.Execute(context.Background(), plan, nil); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	if store.LoadCalled {
+		t.Error("expected LoadCalled = false in dry-run")
+	}
+	if store.SaveCalled {
+		t.Error("expected SaveCalled = false in dry-run")
+	}
+	if store.ClearCalled {
+		t.Error("expected ClearCalled = false in dry-run")
 	}
 }
 

@@ -38,7 +38,7 @@ func (f *FakeRunner) Run(_ context.Context, cmd string, args []string) (*port.Ru
 
 // FakePackageManager is a test double for port.PackageManager.
 type FakePackageManager struct {
-	AvailableResult bool
+	IsAvailableFunc func(ctx context.Context) error
 	InstalledTools  map[string]bool
 	InstallErr      error
 	InstallCalls    []domain.PackageRef
@@ -46,7 +46,14 @@ type FakePackageManager struct {
 
 func (f *FakePackageManager) Name() string { return "fake" }
 
-func (f *FakePackageManager) IsAvailable(_ context.Context) bool { return f.AvailableResult }
+func (f *FakePackageManager) CanHandle(_ domain.PackageRef) bool { return true }
+
+func (f *FakePackageManager) IsAvailable(ctx context.Context) error {
+	if f.IsAvailableFunc != nil {
+		return f.IsAvailableFunc(ctx)
+	}
+	return nil
+}
 
 func (f *FakePackageManager) IsInstalled(_ context.Context, ref domain.PackageRef) (bool, error) {
 	key := ref.Formula
@@ -105,6 +112,40 @@ func (f *FakeCatalogProvider) LoadProfiles() ([]domain.Profile, error) {
 		return nil, f.Err
 	}
 	return f.Profiles, nil
+}
+
+// FakeStateStore is a test double for port.StateStore.
+type FakeStateStore struct {
+	State       *domain.InstallState
+	SaveErr     error
+	LoadErr     error
+	LoadCalled  bool
+	SaveCalled  bool
+	ClearCalled bool
+}
+
+func (f *FakeStateStore) Save(state *domain.InstallState) error {
+	f.SaveCalled = true
+	if f.SaveErr != nil {
+		return f.SaveErr
+	}
+	f.State = state
+	return nil
+}
+
+func (f *FakeStateStore) Load() (*domain.InstallState, error) {
+	f.LoadCalled = true
+	return f.State, f.LoadErr
+}
+
+func (f *FakeStateStore) Clear() error {
+	f.ClearCalled = true
+	f.State = nil
+	return nil
+}
+
+func (f *FakeStateStore) Exists() bool {
+	return f.State != nil
 }
 
 // NewTestTool creates a Tool available on the given OSes for testing.

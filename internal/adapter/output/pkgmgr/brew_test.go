@@ -21,17 +21,17 @@ func TestBrewManager_IsAvailable(t *testing.T) {
 	tests := []struct {
 		name    string
 		results []*port.RunResult
-		want    bool
+		wantErr bool
 	}{
 		{
 			name:    "brew available",
 			results: []*port.RunResult{{ExitCode: 0}},
-			want:    true,
+			wantErr: false,
 		},
 		{
 			name:    "brew not available",
 			results: []*port.RunResult{{ExitCode: 1}},
-			want:    false,
+			wantErr: true,
 		},
 	}
 
@@ -39,9 +39,9 @@ func TestBrewManager_IsAvailable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := &testutil.FakeRunner{Results: tt.results}
 			b := pkgmgr.NewBrew(fake)
-			got := b.IsAvailable(context.Background())
-			if got != tt.want {
-				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
+			err := b.IsAvailable(context.Background())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsAvailable() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if len(fake.Calls) != 1 {
 				t.Fatalf("expected 1 call, got %d", len(fake.Calls))

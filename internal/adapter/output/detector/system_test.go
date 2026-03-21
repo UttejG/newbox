@@ -99,4 +99,3 @@ func TestFormatDetectionInfo(t *testing.T) {
 		})
 	}
 }
-

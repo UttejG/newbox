@@ -9,9 +9,9 @@ const (
 	StatusPending    InstallStatus = "pending"
 	StatusInstalling InstallStatus = "installing"
 	StatusDone       InstallStatus = "done"
-	StatusSkipped    InstallStatus = "skipped"  // already installed
+	StatusSkipped    InstallStatus = "skipped" // already installed
 	StatusFailed     InstallStatus = "failed"
-	StatusDryRun     InstallStatus = "dry_run"  // would install (dry-run mode)
+	StatusDryRun     InstallStatus = "dry_run" // would install (dry-run mode)
 )
 
 // ExecutionStep represents one installation action.
@@ -58,6 +58,30 @@ type ProgressEvent struct {
 	Step  ExecutionStep
 	Index int // 0-based index into PendingSteps
 	Total int
+}
+
+// InstallState persists between runs for resume support.
+type InstallState struct {
+	CompletedIDs []string
+	FailedIDs    []string
+	StartedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func (s *InstallState) IsCompleted(toolID string) bool {
+	for _, id := range s.CompletedIDs {
+		if id == toolID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *InstallState) MarkCompleted(toolID string) {
+	if !s.IsCompleted(toolID) {
+		s.CompletedIDs = append(s.CompletedIDs, toolID)
+		s.UpdatedAt = time.Now()
+	}
 }
 
 // PreflightResult captures system readiness.

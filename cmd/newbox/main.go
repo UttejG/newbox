@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -16,6 +17,7 @@ import (
 	"github.com/uttejg/newbox/internal/adapter/output/detector"
 	"github.com/uttejg/newbox/internal/adapter/output/pkgmgr"
 	"github.com/uttejg/newbox/internal/adapter/output/runner"
+	"github.com/uttejg/newbox/internal/adapter/output/statestore"
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
 	"github.com/uttejg/newbox/internal/core/service"
@@ -72,6 +74,35 @@ func main() {
 		cmdRunner = &runner.ExecRunner{}
 	}
 
+	// Wire state store for resume support.
+	var store port.StateStore
+	if !*dryRun {
+		if fs, err := statestore.NewFileStore(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: state store unavailable: %v\n", err)
+		} else {
+			store = fs
+		}
+	}
+
+	// Offer resume if stdin is a TTY and a previous install was interrupted.
+	if !*dryRun {
+		if fi, stdinErr := os.Stdin.Stat(); stdinErr == nil && (fi.Mode()&os.ModeCharDevice) != 0 {
+			if store != nil && store.Exists() {
+				savedState, _ := store.Load()
+				if savedState != nil && len(savedState.CompletedIDs) > 0 {
+					fmt.Fprintf(os.Stderr, "\nPrevious install found (%d tools completed). Resume? [Y/n]: ",
+						len(savedState.CompletedIDs))
+					scanner := bufio.NewScanner(os.Stdin)
+					scanner.Scan()
+					answer := strings.TrimSpace(scanner.Text())
+					if strings.EqualFold(answer, "n") {
+						_ = store.Clear()
+					}
+				}
+			}
+		}
+	}
+
 	// Wire adapters.
 	syschecker := &checker.SystemChecker{Runner: cmdRunner}
 	catalogSvc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
@@ -82,7 +113,9 @@ func main() {
 	switch platform.OS {
 	case domain.OSMacOS:
 		brew := pkgmgr.NewBrew(cmdRunner)
-		installSvc = service.NewInstallService(brew, syschecker, *dryRun)
+		mas := pkgmgr.NewMAS(cmdRunner)
+		composite := pkgmgr.NewComposite(brew, mas)
+		installSvc = service.NewInstallService(composite, syschecker, store, *dryRun, os.Stderr)
 	}
 
 	// Non-interactive summary mode.

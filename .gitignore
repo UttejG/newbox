@@ -40,3 +40,6 @@ Thumbs.db
 
 # newbox state
 .newbox/
+
+# compiled binary
+/newbox
