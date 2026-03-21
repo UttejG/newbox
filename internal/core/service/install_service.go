@@ -49,14 +49,19 @@ func (s *InstallService) Preflight(ctx context.Context) (*domain.PreflightResult
 	}
 
 	if cm, ok := s.pkgMgr.(compositeManager); ok {
-		allOK := true
-		for _, sub := range cm.SubManagers() {
-			if err := sub.IsAvailable(ctx); err != nil {
-				result.Errors = append(result.Errors, err.Error())
-				allOK = false
+		subs := cm.SubManagers()
+		if len(subs) == 0 {
+			result.Errors = append(result.Errors, "no supported package manager found for this platform")
+		} else {
+			allOK := true
+			for _, sub := range subs {
+				if err := sub.IsAvailable(ctx); err != nil {
+					result.Errors = append(result.Errors, err.Error())
+					allOK = false
+				}
 			}
+			result.PackageManagerOK = allOK
 		}
-		result.PackageManagerOK = allOK
 	} else {
 		if err := s.pkgMgr.IsAvailable(ctx); err != nil {
 			result.Errors = append(result.Errors, err.Error())

@@ -116,6 +116,9 @@ func main() {
 		mas := pkgmgr.NewMAS(cmdRunner)
 		composite := pkgmgr.NewComposite(brew, mas)
 		installSvc = service.NewInstallService(composite, syschecker, store, *dryRun, os.Stderr)
+	case domain.OSLinux:
+		linuxMgr := pkgmgr.NewForPlatform(platform, cmdRunner)
+		installSvc = service.NewInstallService(linuxMgr, syschecker, store, *dryRun, os.Stderr)
 	}
 
 	// Non-interactive summary mode.
