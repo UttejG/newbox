@@ -110,6 +110,7 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 	steps := plan.PendingSteps()
 	total := len(steps)
 	var failedTools []string
+	var saveWarnings []string
 
 	for i := range steps {
 		// Honour context cancellation between steps.
@@ -146,13 +147,17 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 			failedTools = append(failedTools, step.Tool.Name)
 			state.FailedIDs = append(state.FailedIDs, step.Tool.Name)
 			if s.store != nil {
-				_ = s.store.Save(state) // persist failure for resume; non-fatal if it errors
+				if saveErr := s.store.Save(state); saveErr != nil {
+					saveWarnings = append(saveWarnings, saveErr.Error())
+				}
 			}
 		} else {
 			step.Status = domain.StatusDone
 			state.MarkCompleted(step.Tool.Name)
 			if s.store != nil {
-				_ = s.store.Save(state) // persist progress; non-fatal if it errors
+				if saveErr := s.store.Save(state); saveErr != nil {
+					saveWarnings = append(saveWarnings, saveErr.Error())
+				}
 			}
 		}
 
@@ -169,6 +174,9 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 
 	if len(failedTools) > 0 {
 		return fmt.Errorf("%d tool(s) failed to install: %s", len(failedTools), strings.Join(failedTools, ", "))
+	}
+	if len(saveWarnings) > 0 {
+		return fmt.Errorf("warning: resume state could not be persisted: %s", strings.Join(saveWarnings, "; "))
 	}
 	return nil
 }

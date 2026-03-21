@@ -47,7 +47,19 @@ func (m *MASManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 	if m.loadErr != nil {
 		return false, m.loadErr
 	}
-	return strings.Contains(m.installedRaw, ref.MAS), nil
+	// Match the first whitespace-delimited token (app ID) exactly to avoid
+	// false positives where ref.MAS "123" would match a line containing "1234".
+	for _, line := range strings.Split(m.installedRaw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) > 0 && parts[0] == ref.MAS {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (m *MASManager) BuildCommand(ref domain.PackageRef) string {

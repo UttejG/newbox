@@ -40,8 +40,14 @@ func (b *BrewManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (b
 	if res != nil && res.DryRun {
 		return false, nil
 	}
-	if err != nil || (res != nil && res.ExitCode != 0) {
-		return false, nil // not installed
+	if err != nil {
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not installed
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
+	}
+	if res != nil && res.ExitCode != 0 {
+		return false, nil // not installed (runner returned non-zero without error)
 	}
 	return true, nil
 }

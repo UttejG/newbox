@@ -48,9 +48,10 @@ func (s *CatalogService) GetProfile(id string) (*domain.Profile, error) {
 		return nil, fmt.Errorf("loading profiles: %w", err)
 	}
 
-	for i := range profiles {
-		if profiles[i].ID == id {
-			return &profiles[i], nil
+	for _, p := range profiles {
+		if p.ID == id {
+			cp := p // defensive copy — prevents mutation of the provider cache
+			return &cp, nil
 		}
 	}
 	return nil, fmt.Errorf("profile %q not found", id)
@@ -62,5 +63,8 @@ func (s *CatalogService) GetAllProfiles() ([]domain.Profile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading profiles: %w", err)
 	}
-	return profiles, nil
+	// Return a copy to prevent callers from mutating the provider cache.
+	result := make([]domain.Profile, len(profiles))
+	copy(result, profiles)
+	return result, nil
 }

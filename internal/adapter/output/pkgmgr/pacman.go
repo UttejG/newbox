@@ -31,7 +31,10 @@ func (p *PacmanManager) IsInstalled(ctx context.Context, ref domain.PackageRef) 
 	}
 	res, err := p.runner.Run(ctx, "pacman", []string{"-Q", ref.Pacman})
 	if err != nil {
-		return false, nil
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
 	}
 	if res.DryRun {
 		return false, nil

@@ -32,7 +32,10 @@ func (a *AptManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 	}
 	res, err := a.runner.Run(ctx, "dpkg-query", []string{"-W", "-f=${Status}", ref.Apt})
 	if err != nil {
-		return false, nil
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
 	}
 	if res.DryRun {
 		return false, nil

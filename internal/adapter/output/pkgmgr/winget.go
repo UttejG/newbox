@@ -32,7 +32,10 @@ func (w *WingetManager) IsInstalled(ctx context.Context, ref domain.PackageRef) 
 	}
 	res, err := w.runner.Run(ctx, "winget", []string{"list", "--id", ref.Winget, "--exact"})
 	if err != nil {
-		return false, nil
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
 	}
 	return res.ExitCode == 0 && strings.Contains(res.Stdout, ref.Winget), nil
 }

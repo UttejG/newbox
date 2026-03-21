@@ -2,6 +2,7 @@
 package catalogprovider
 
 import (
+	"fmt"
 	"sync"
 
 	"gopkg.in/yaml.v3"
@@ -72,7 +73,7 @@ func (p *EmbeddedProvider) LoadCategories() ([]domain.Category, error) {
 	p.catsOnce.Do(func() {
 		var raw yamlCatalog
 		if err := yaml.Unmarshal(catalog.ToolsYAML, &raw); err != nil {
-			p.catsErr = err
+			p.catsErr = fmt.Errorf("parsing embedded tools.yaml: %w", err)
 			return
 		}
 		categories := make([]domain.Category, 0, len(raw.Categories))
@@ -107,7 +108,7 @@ func (p *EmbeddedProvider) LoadProfiles() ([]domain.Profile, error) {
 	p.profsOnce.Do(func() {
 		var raw yamlProfiles
 		if err := yaml.Unmarshal(catalog.ProfilesYAML, &raw); err != nil {
-			p.profsErr = err
+			p.profsErr = fmt.Errorf("parsing embedded profiles.yaml: %w", err)
 			return
 		}
 		profiles := make([]domain.Profile, 0, len(raw.Profiles))
