@@ -40,6 +40,13 @@ func (d *DnfManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 	return strings.Contains(res.Stdout, ref.Dnf), nil
 }
 
+func (d *DnfManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Dnf == "" {
+		return ""
+	}
+	return "dnf install -y " + ref.Dnf
+}
+
 func (d *DnfManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
 	if ref.Dnf == "" {
 		return nil, fmt.Errorf("no dnf package for this tool")

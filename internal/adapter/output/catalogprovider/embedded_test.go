@@ -82,15 +82,14 @@ func TestCatalog_NoDuplicateToolNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadCategories() error: %v", err)
 	}
-	// Track name → category ID for first occurrence
+	// Track tool name for global uniqueness across all categories
 	seen := make(map[string]string)
 	for _, cat := range cats {
 		for _, tool := range cat.Tools {
-			key := tool.Name + "|" + cat.ID
-			if prevCat, exists := seen[key]; exists {
-				t.Errorf("duplicate tool %q appears twice in category %q (first seen in %q)", tool.Name, cat.ID, prevCat)
+			if prevCat, exists := seen[tool.Name]; exists {
+				t.Errorf("duplicate tool %q: first seen in category %q, also in %q", tool.Name, prevCat, cat.ID)
 			}
-			seen[key] = cat.ID
+			seen[tool.Name] = cat.ID
 		}
 	}
 }

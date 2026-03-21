@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
@@ -11,7 +12,9 @@ import (
 
 // FlatpakManager implements PackageManager for Flatpak (cross-distro Linux fallback).
 type FlatpakManager struct {
-	runner port.CommandRunner
+	runner       port.CommandRunner
+	loadOnce     sync.Once
+	installedRaw string // cached stdout from `flatpak list --app`
 }
 
 // NewFlatpak creates a FlatpakManager backed by the given CommandRunner.
@@ -30,14 +33,21 @@ func (f *FlatpakManager) IsInstalled(ctx context.Context, ref domain.PackageRef)
 	if ref.Flatpak == "" {
 		return false, nil
 	}
-	res, err := f.runner.Run(ctx, "flatpak", []string{"list", "--app"})
-	if err != nil {
-		return false, nil
+	f.loadOnce.Do(func() {
+		res, err := f.runner.Run(ctx, "flatpak", []string{"list", "--app"})
+		if err != nil || res.DryRun {
+			return
+		}
+		f.installedRaw = res.Stdout
+	})
+	return strings.Contains(f.installedRaw, ref.Flatpak), nil
+}
+
+func (f *FlatpakManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Flatpak == "" {
+		return ""
 	}
-	if res.DryRun {
-		return false, nil
-	}
-	return strings.Contains(res.Stdout, ref.Flatpak), nil
+	return "flatpak install -y flathub " + ref.Flatpak
 }
 
 func (f *FlatpakManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {

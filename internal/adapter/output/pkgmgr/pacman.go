@@ -39,6 +39,13 @@ func (p *PacmanManager) IsInstalled(ctx context.Context, ref domain.PackageRef) 
 	return res.ExitCode == 0, nil
 }
 
+func (p *PacmanManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Pacman == "" {
+		return ""
+	}
+	return "pacman -S --noconfirm " + ref.Pacman
+}
+
 func (p *PacmanManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
 	if ref.Pacman == "" {
 		return nil, fmt.Errorf("no pacman package for this tool")

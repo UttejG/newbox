@@ -37,6 +37,13 @@ func (w *WingetManager) IsInstalled(ctx context.Context, ref domain.PackageRef) 
 	return res.ExitCode == 0 && strings.Contains(res.Stdout, ref.Winget), nil
 }
 
+func (w *WingetManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Winget == "" {
+		return ""
+	}
+	return "winget install --id " + ref.Winget + " --exact --silent"
+}
+
 func (w *WingetManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
 	if ref.Winget == "" {
 		return nil, fmt.Errorf("no winget ID for this package")
@@ -47,6 +54,5 @@ func (w *WingetManager) Install(ctx context.Context, ref domain.PackageRef) (*po
 		"--exact",
 		"--silent",
 		"--accept-package-agreements",
-		"--accept-source-agreements",
 	})
 }

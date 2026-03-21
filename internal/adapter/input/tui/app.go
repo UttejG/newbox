@@ -18,9 +18,16 @@ const (
 	screenCategories
 	screenTools
 	screenConfirm
+	screenPlanning // Plan() running in background
 	screenInstall
 	screenDone
 )
+
+// planResultMsg carries the outcome of an async Plan() call.
+type planResultMsg struct {
+	plan *domain.InstallPlan
+	err  error
+}
 
 // AppModel is the root Bubbletea model. It owns all screen state and handles transitions.
 type AppModel struct {
@@ -81,6 +88,22 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateTools(msg)
 	case screenConfirm:
 		return m.updateConfirm(msg)
+	case screenPlanning:
+		if result, ok := msg.(planResultMsg); ok {
+			if result.err != nil {
+				m.err = result.err
+				return m, nil
+			}
+			ch := make(chan domain.ProgressEvent, 100)
+			m.installModel = screens.NewInstall(result.plan, m.dryRun, ch)
+			m.current = screenInstall
+			go func() {
+				defer close(ch)
+				_ = m.installSvc.Execute(context.Background(), result.plan, ch)
+			}()
+			return m, m.installModel.Init()
+		}
+		return m, nil
 	case screenInstall:
 		return m.updateInstall(msg)
 	}
@@ -103,6 +126,8 @@ func (m *AppModel) View() string {
 		return m.tools.View()
 	case screenConfirm:
 		return m.confirm.View()
+	case screenPlanning:
+		return "\n  Planning installation…\n"
 	case screenInstall:
 		return m.installModel.View()
 	case screenDone:
@@ -230,23 +255,13 @@ func (m *AppModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) transitionToInstall() (tea.Model, tea.Cmd) {
-	ctx := context.Background()
-	plan, err := m.installSvc.Plan(ctx, m.selection)
-	if err != nil {
-		m.err = err
-		return m, nil
+	m.current = screenPlanning
+	svc := m.installSvc
+	sel := m.selection
+	return m, func() tea.Msg {
+		plan, err := svc.Plan(context.Background(), sel)
+		return planResultMsg{plan: plan, err: err}
 	}
-
-	ch := make(chan domain.ProgressEvent, 100)
-	m.installModel = screens.NewInstall(plan, m.dryRun, ch)
-	m.current = screenInstall
-
-	go func() {
-		defer close(ch)
-		_ = m.installSvc.Execute(ctx, plan, ch)
-	}()
-
-	return m, m.installModel.Init()
 }
 
 func (m *AppModel) updateInstall(msg tea.Msg) (tea.Model, tea.Cmd) {

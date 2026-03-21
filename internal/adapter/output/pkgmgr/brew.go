@@ -54,6 +54,16 @@ func (b *BrewManager) Install(ctx context.Context, ref domain.PackageRef) (*port
 	return b.runner.Run(ctx, "brew", args)
 }
 
+func (b *BrewManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Cask != "" {
+		return "brew install --cask " + ref.Cask
+	}
+	if ref.Formula != "" {
+		return "brew install " + ref.Formula
+	}
+	return ""
+}
+
 func (b *BrewManager) installArgs(ref domain.PackageRef) []string {
 	if ref.Cask != "" {
 		return []string{"install", "--cask", ref.Cask}

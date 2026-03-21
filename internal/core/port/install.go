@@ -26,6 +26,9 @@ type PackageManager interface {
 	IsAvailable(ctx context.Context) bool
 	IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error)
 	Install(ctx context.Context, ref domain.PackageRef) (*RunResult, error)
+	// BuildCommand returns the shell command string that would be run to install
+	// the given ref (used for dry-run display and plan summaries).
+	BuildCommand(ref domain.PackageRef) string
 }
 
 // SystemChecker runs pre-flight checks.

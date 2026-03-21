@@ -1042,17 +1042,6 @@ categories:
     name: "🖼️ Screenshot & Record"
     description: "Screen capture and recording tools"
     tools:
-      - name: OBS Studio
-        description: "Live streaming and screen recording"
-        dotfiles_default: false
-        macos:
-          cask: obs
-        windows:
-          winget: OBSProject.OBSStudio
-        linux:
-          apt: obs-studio
-          flatpak: com.obsproject.Studio
-
       - name: Flameshot
         description: "Powerful screenshot tool"
         dotfiles_default: false

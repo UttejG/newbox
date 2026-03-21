@@ -40,6 +40,13 @@ func (a *AptManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 	return strings.Contains(res.Stdout, "install ok installed"), nil
 }
 
+func (a *AptManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Apt == "" {
+		return ""
+	}
+	return "apt-get install -y " + ref.Apt
+}
+
 func (a *AptManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
 	if ref.Apt == "" {
 		return nil, fmt.Errorf("no apt package for this tool")

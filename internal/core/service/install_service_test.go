@@ -54,30 +54,34 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 	tests := []struct {
 		name       string
 		checker    testutil.FakeSystemChecker
+		pkgAvail   bool
 		wantErrors int
 		wantOK     bool
 	}{
 		{
 			name:       "internet failure",
 			checker:    testutil.FakeSystemChecker{InternetErr: errTest},
+			pkgAvail:   true,
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
 			name:       "disk failure",
 			checker:    testutil.FakeSystemChecker{DiskErr: errTest},
+			pkgAvail:   true,
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
 			name:       "pkgmgr failure",
-			checker:    testutil.FakeSystemChecker{PkgMgrErr: errTest},
+			pkgAvail:   false, // package manager not available
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
 			name:       "all failures",
-			checker:    testutil.FakeSystemChecker{InternetErr: errTest, DiskErr: errTest, PkgMgrErr: errTest},
+			checker:    testutil.FakeSystemChecker{InternetErr: errTest, DiskErr: errTest},
+			pkgAvail:   false,
 			wantErrors: 3,
 			wantOK:     false,
 		},
@@ -86,7 +90,7 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := service.NewInstallService(
-				&testutil.FakePackageManager{},
+				&testutil.FakePackageManager{AvailableResult: tt.pkgAvail},
 				&tt.checker,
 				nil,
 				false,

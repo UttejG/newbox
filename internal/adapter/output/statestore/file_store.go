@@ -21,7 +21,7 @@ func NewFileStore() (*FileStore, error) {
 		return nil, err
 	}
 	dir := filepath.Join(home, ".newbox")
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
 	return &FileStore{Path: filepath.Join(dir, "state.json")}, nil
@@ -32,7 +32,7 @@ func (f *FileStore) Save(state *domain.InstallState) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(f.Path, data, 0644)
+	return os.WriteFile(f.Path, data, 0600)
 }
 
 func (f *FileStore) Load() (*domain.InstallState, error) {
