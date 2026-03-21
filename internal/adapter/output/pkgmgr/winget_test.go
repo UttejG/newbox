@@ -96,6 +96,9 @@ func TestWingetManager_IsInstalled(t *testing.T) {
 				if call.Cmd != "winget" {
 					t.Errorf("cmd = %q, want \"winget\"", call.Cmd)
 				}
+				if len(call.Args) != len(tt.wantArgs) {
+					t.Fatalf("args length = %d, want %d; got %v", len(call.Args), len(tt.wantArgs), call.Args)
+				}
 				for i, a := range tt.wantArgs {
 					if call.Args[i] != a {
 						t.Errorf("args[%d] = %q, want %q", i, call.Args[i], a)
@@ -154,6 +157,9 @@ func TestWingetManager_Install(t *testing.T) {
 			call := fake.Calls[0]
 			if call.Cmd != "winget" {
 				t.Errorf("cmd = %q, want \"winget\"", call.Cmd)
+			}
+			if len(call.Args) != len(tt.wantArgs) {
+				t.Fatalf("args length = %d, want %d; got %v", len(call.Args), len(tt.wantArgs), call.Args)
 			}
 			for i, a := range tt.wantArgs {
 				if call.Args[i] != a {
