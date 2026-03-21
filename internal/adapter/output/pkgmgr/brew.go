@@ -20,6 +20,10 @@ func NewBrew(runner port.CommandRunner) *BrewManager {
 
 func (b *BrewManager) Name() string { return "brew" }
 
+func (b *BrewManager) CanHandle(ref domain.PackageRef) bool {
+	return ref.Formula != "" || ref.Cask != ""
+}
+
 func (b *BrewManager) IsAvailable(ctx context.Context) bool {
 	res, err := b.runner.Run(ctx, "brew", []string{"--version"})
 	return err == nil && res.ExitCode == 0

@@ -21,6 +21,13 @@ func NewComposite(managers ...port.PackageManager) *CompositeManager {
 
 func (c *CompositeManager) Name() string { return "composite" }
 
+func (c *CompositeManager) CanHandle(_ domain.PackageRef) bool { return true }
+
+// SubManagers returns the underlying sub-managers for delegation.
+func (c *CompositeManager) SubManagers() []port.PackageManager {
+	return c.managers
+}
+
 func (c *CompositeManager) IsAvailable(ctx context.Context) bool {
 	for _, m := range c.managers {
 		if m.IsAvailable(ctx) {
@@ -55,20 +62,11 @@ func (c *CompositeManager) BuildCommand(ref domain.PackageRef) string {
 	return mgr.BuildCommand(ref)
 }
 
-// managerFor selects the right manager based on which fields are set in ref.
+// managerFor selects the right manager based on CanHandle.
 func (c *CompositeManager) managerFor(ref domain.PackageRef) port.PackageManager {
-	if ref.MAS != "" {
-		for _, m := range c.managers {
-			if m.Name() == "mas" {
-				return m
-			}
-		}
-	}
-	if ref.Formula != "" || ref.Cask != "" {
-		for _, m := range c.managers {
-			if m.Name() == "brew" {
-				return m
-			}
+	for _, m := range c.managers {
+		if m.CanHandle(ref) {
+			return m
 		}
 	}
 	return nil
