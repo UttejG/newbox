@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/uttejg/newbox/internal/core/domain"
@@ -37,10 +38,12 @@ func (s *InstallService) Preflight(ctx context.Context) (*domain.PreflightResult
 		result.DiskSpaceOK = true
 	}
 
-	if err := s.checker.CheckPackageManager(ctx, s.pkgMgr.Name()); err != nil {
-		result.Errors = append(result.Errors, err.Error())
-	} else {
+	// Use the package manager's own availability check rather than shelling out
+	// "<name> --version", which fails for composite managers that have no binary.
+	if s.pkgMgr.IsAvailable(ctx) {
 		result.PackageManagerOK = true
+	} else {
+		result.Errors = append(result.Errors, fmt.Sprintf("package manager %q not available", s.pkgMgr.Name()))
 	}
 
 	return result, nil
@@ -63,7 +66,7 @@ func (s *InstallService) Plan(ctx context.Context, selection *domain.UserSelecti
 		step := domain.ExecutionStep{
 			Tool:    tool,
 			Ref:     *ref,
-			Command: s.buildCommandString(ref),
+			Command: s.pkgMgr.BuildCommand(*ref),
 		}
 
 		if s.dryRun {
@@ -106,20 +109,31 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 
 	steps := plan.PendingSteps()
 	total := len(steps)
+	var failedTools []string
+	var saveWarnings []string
 
-	for i, step := range steps {
+	for i := range steps {
+		// Honour context cancellation between steps.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		step := &steps[i]
+
 		// Resume: skip tools already completed in a previous run.
 		if state.IsCompleted(step.Tool.Name) {
 			if progress != nil {
 				step.Status = domain.StatusDone
-				progress <- domain.ProgressEvent{Step: step, Index: i, Total: total}
+				progress <- domain.ProgressEvent{Step: *step, Index: i, Total: total}
 			}
 			continue
 		}
 
 		if progress != nil {
 			step.Status = domain.StatusInstalling
-			progress <- domain.ProgressEvent{Step: step, Index: i, Total: total}
+			progress <- domain.ProgressEvent{Step: *step, Index: i, Total: total}
 		}
 
 		res, err := s.pkgMgr.Install(ctx, step.Ref)
@@ -130,37 +144,39 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 		if err != nil {
 			step.Status = domain.StatusFailed
 			step.Error = err
+			failedTools = append(failedTools, step.Tool.Name)
 			state.FailedIDs = append(state.FailedIDs, step.Tool.Name)
+			if s.store != nil {
+				if saveErr := s.store.Save(state); saveErr != nil {
+					saveWarnings = append(saveWarnings, saveErr.Error())
+				}
+			}
 		} else {
 			step.Status = domain.StatusDone
 			state.MarkCompleted(step.Tool.Name)
 			if s.store != nil {
-				_ = s.store.Save(state)
+				if saveErr := s.store.Save(state); saveErr != nil {
+					saveWarnings = append(saveWarnings, saveErr.Error())
+				}
 			}
 		}
 
 		if progress != nil {
-			progress <- domain.ProgressEvent{Step: step, Index: i, Total: total}
+			progress <- domain.ProgressEvent{Step: *step, Index: i, Total: total}
 		}
 	}
 
-	// Clear persisted state once everything has run.
-	if s.store != nil {
+	// Only clear persisted state when everything succeeded; preserve it on
+	// partial failure so the user can resume.
+	if s.store != nil && len(failedTools) == 0 {
 		_ = s.store.Clear()
 	}
 
+	if len(failedTools) > 0 {
+		return fmt.Errorf("%d tool(s) failed to install: %s", len(failedTools), strings.Join(failedTools, ", "))
+	}
+	if len(saveWarnings) > 0 {
+		return fmt.Errorf("warning: resume state could not be persisted: %s", strings.Join(saveWarnings, "; "))
+	}
 	return nil
-}
-
-func (s *InstallService) buildCommandString(ref *domain.PackageRef) string {
-	if ref.Cask != "" {
-		return "brew install --cask " + ref.Cask
-	}
-	if ref.Formula != "" {
-		return "brew install " + ref.Formula
-	}
-	if ref.MAS != "" {
-		return "mas install " + ref.MAS
-	}
-	return ""
 }

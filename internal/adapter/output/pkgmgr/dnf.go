@@ -32,12 +32,22 @@ func (d *DnfManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 	}
 	res, err := d.runner.Run(ctx, "dnf", []string{"list", "installed", ref.Dnf})
 	if err != nil {
-		return false, nil
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
 	}
 	if res.DryRun {
 		return false, nil
 	}
 	return strings.Contains(res.Stdout, ref.Dnf), nil
+}
+
+func (d *DnfManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Dnf == "" {
+		return ""
+	}
+	return "dnf install -y " + ref.Dnf
 }
 
 func (d *DnfManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {

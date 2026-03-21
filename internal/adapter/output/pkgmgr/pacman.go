@@ -31,12 +31,22 @@ func (p *PacmanManager) IsInstalled(ctx context.Context, ref domain.PackageRef) 
 	}
 	res, err := p.runner.Run(ctx, "pacman", []string{"-Q", ref.Pacman})
 	if err != nil {
-		return false, nil
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
 	}
 	if res.DryRun {
 		return false, nil
 	}
 	return res.ExitCode == 0, nil
+}
+
+func (p *PacmanManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Pacman == "" {
+		return ""
+	}
+	return "pacman -S --noconfirm " + ref.Pacman
 }
 
 func (p *PacmanManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {

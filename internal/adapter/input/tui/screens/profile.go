@@ -2,7 +2,6 @@ package screens
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
 )
@@ -54,8 +53,8 @@ func (m ProfileModel) View() string {
 	var items string
 	for i, p := range m.profiles {
 		cursor := "  "
-		nameStyle := lipgloss.NewStyle().Foreground(styles.Text)
-		descStyle := lipgloss.NewStyle().Foreground(styles.Muted)
+		nameStyle := styles.ItemNameStyle
+		descStyle := styles.ItemDescStyle
 
 		if i == m.cursor {
 			cursor = styles.SelectedStyle.Render("▸ ")

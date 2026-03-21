@@ -56,6 +56,16 @@ func (f *FakePackageManager) IsInstalled(_ context.Context, ref domain.PackageRe
 	return f.InstalledTools[key], nil
 }
 
+func (f *FakePackageManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Cask != "" {
+		return "brew install --cask " + ref.Cask
+	}
+	if ref.Formula != "" {
+		return "brew install " + ref.Formula
+	}
+	return ""
+}
+
 func (f *FakePackageManager) Install(_ context.Context, ref domain.PackageRef) (*port.RunResult, error) {
 	f.InstallCalls = append(f.InstallCalls, ref)
 	return &port.RunResult{}, f.InstallErr

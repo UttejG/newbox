@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
@@ -11,7 +12,10 @@ import (
 
 // MASManager implements PackageManager for Mac App Store via the `mas` CLI.
 type MASManager struct {
-	runner port.CommandRunner
+	runner       port.CommandRunner
+	loadOnce     sync.Once
+	installedRaw string // cached stdout from `mas list`
+	loadErr      error
 }
 
 // NewMAS creates a MASManager backed by the given CommandRunner.
@@ -30,14 +34,39 @@ func (m *MASManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 	if ref.MAS == "" {
 		return false, nil
 	}
-	res, err := m.runner.Run(ctx, "mas", []string{"list"})
-	if err != nil {
-		return false, err
+	m.loadOnce.Do(func() {
+		res, err := m.runner.Run(ctx, "mas", []string{"list"})
+		if err != nil {
+			m.loadErr = err
+			return
+		}
+		if !res.DryRun {
+			m.installedRaw = res.Stdout
+		}
+	})
+	if m.loadErr != nil {
+		return false, m.loadErr
 	}
-	if res.DryRun {
-		return false, nil
+	// Match the first whitespace-delimited token (app ID) exactly to avoid
+	// false positives where ref.MAS "123" would match a line containing "1234".
+	for _, line := range strings.Split(m.installedRaw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) > 0 && parts[0] == ref.MAS {
+			return true, nil
+		}
 	}
-	return strings.Contains(res.Stdout, ref.MAS), nil
+	return false, nil
+}
+
+func (m *MASManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.MAS == "" {
+		return ""
+	}
+	return "mas install " + ref.MAS
 }
 
 func (m *MASManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {

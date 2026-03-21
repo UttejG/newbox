@@ -120,7 +120,6 @@ func TestWingetManager_Install(t *testing.T) {
 				"install", "--id", "Mozilla.Firefox",
 				"--exact", "--silent",
 				"--accept-package-agreements",
-				"--accept-source-agreements",
 			},
 		},
 		{

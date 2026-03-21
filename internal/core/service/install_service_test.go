@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/uttejg/newbox/internal/core/domain"
+	"github.com/uttejg/newbox/internal/core/port"
 	"github.com/uttejg/newbox/internal/core/service"
 	"github.com/uttejg/newbox/internal/testutil"
 )
@@ -54,30 +55,34 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 	tests := []struct {
 		name       string
 		checker    testutil.FakeSystemChecker
+		pkgAvail   bool
 		wantErrors int
 		wantOK     bool
 	}{
 		{
 			name:       "internet failure",
 			checker:    testutil.FakeSystemChecker{InternetErr: errTest},
+			pkgAvail:   true,
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
 			name:       "disk failure",
 			checker:    testutil.FakeSystemChecker{DiskErr: errTest},
+			pkgAvail:   true,
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
 			name:       "pkgmgr failure",
-			checker:    testutil.FakeSystemChecker{PkgMgrErr: errTest},
+			pkgAvail:   false, // package manager not available
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
 			name:       "all failures",
-			checker:    testutil.FakeSystemChecker{InternetErr: errTest, DiskErr: errTest, PkgMgrErr: errTest},
+			checker:    testutil.FakeSystemChecker{InternetErr: errTest, DiskErr: errTest},
+			pkgAvail:   false,
 			wantErrors: 3,
 			wantOK:     false,
 		},
@@ -86,7 +91,7 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := service.NewInstallService(
-				&testutil.FakePackageManager{},
+				&testutil.FakePackageManager{AvailableResult: tt.pkgAvail},
 				&tt.checker,
 				nil,
 				false,
@@ -275,6 +280,133 @@ func TestInstallService_Execute_DryRun(t *testing.T) {
 	if len(fake.InstallCalls) != 1 {
 		t.Errorf("expected 1 install call, got %d", len(fake.InstallCalls))
 	}
+}
+
+// ── Resume state ─────────────────────────────────────────────────────────────
+
+// TestInstallService_Execute_SkipsCompletedTools verifies that tools already
+// marked completed in the persisted state are not reinstalled.
+func TestInstallService_Execute_SkipsCompletedTools(t *testing.T) {
+	tools := []domain.Tool{
+		{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}},
+		{Name: "vim", MacOS: &domain.PackageRef{Formula: "vim"}},
+	}
+	fake := &testutil.FakePackageManager{}
+	store := &testutil.FakeStateStore{
+		State: &domain.InstallState{CompletedIDs: []string{"git"}},
+	}
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, false)
+
+	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+
+	if err := svc.Execute(context.Background(), plan, nil); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	// Only vim should be installed; git was already completed.
+	if len(fake.InstallCalls) != 1 {
+		t.Errorf("expected 1 install call (vim only), got %d: %v", len(fake.InstallCalls), fake.InstallCalls)
+	}
+	if len(fake.InstallCalls) == 1 && fake.InstallCalls[0].Formula != "vim" {
+		t.Errorf("expected install call for vim, got %v", fake.InstallCalls[0])
+	}
+}
+
+// TestInstallService_Execute_PreservesStateOnPartialFailure verifies that
+// resume state is NOT cleared when some tools fail to install.
+func TestInstallService_Execute_PreservesStateOnPartialFailure(t *testing.T) {
+	tools := []domain.Tool{
+		{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}},
+		{Name: "fail-tool", MacOS: &domain.PackageRef{Formula: "fail-tool"}},
+	}
+	fake := &testutil.FakePackageManager{InstallErr: nil}
+	// Make the second install call fail by swapping InstallErr mid-flight.
+	callCount := 0
+	fakeWithPartialErr := &partialErrPkgMgr{
+		FakePackageManager: fake,
+		failOn:             2,
+		callCount:          &callCount,
+	}
+	store := &testutil.FakeStateStore{}
+	svc := service.NewInstallService(fakeWithPartialErr, &testutil.FakeSystemChecker{}, store, false)
+
+	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+
+	execErr := svc.Execute(context.Background(), plan, nil)
+	if execErr == nil {
+		t.Fatal("Execute() expected error on partial failure, got nil")
+	}
+
+	// Resume state must still be present (not cleared) after partial failure.
+	if store.State == nil {
+		t.Error("expected resume state to be preserved after partial failure, but store was cleared")
+	}
+}
+
+// TestInstallService_Execute_ClearsStateOnFullSuccess verifies that resume
+// state is cleared when all tools are installed successfully.
+func TestInstallService_Execute_ClearsStateOnFullSuccess(t *testing.T) {
+	tools := []domain.Tool{
+		{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}},
+	}
+	fake := &testutil.FakePackageManager{}
+	store := &testutil.FakeStateStore{}
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, false)
+
+	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+
+	if err := svc.Execute(context.Background(), plan, nil); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	// State must be cleared on full success.
+	if store.State != nil {
+		t.Errorf("expected resume state to be cleared after full success, but store still has state: %+v", store.State)
+	}
+}
+
+// TestInstallService_Execute_SurfacesSaveErrors verifies that Save errors are
+// returned when no install failures occurred.
+func TestInstallService_Execute_SurfacesSaveErrors(t *testing.T) {
+	tool := domain.Tool{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}}
+	fake := &testutil.FakePackageManager{}
+	store := &testutil.FakeStateStore{SaveErr: errTest}
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, false)
+
+	plan, err := svc.Plan(context.Background(), makeSelection(tool))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+
+	execErr := svc.Execute(context.Background(), plan, nil)
+	if execErr == nil {
+		t.Fatal("Execute() expected warning error from save failure, got nil")
+	}
+}
+
+// partialErrPkgMgr wraps FakePackageManager and returns an error on a
+// specific install call number.
+type partialErrPkgMgr struct {
+	*testutil.FakePackageManager
+	failOn    int
+	callCount *int
+}
+
+func (p *partialErrPkgMgr) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
+	*p.callCount++
+	if *p.callCount == p.failOn {
+		return nil, errTest
+	}
+	return p.FakePackageManager.Install(ctx, ref)
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

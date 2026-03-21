@@ -32,9 +32,19 @@ func (w *WingetManager) IsInstalled(ctx context.Context, ref domain.PackageRef) 
 	}
 	res, err := w.runner.Run(ctx, "winget", []string{"list", "--id", ref.Winget, "--exact"})
 	if err != nil {
-		return false, nil
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
 	}
 	return res.ExitCode == 0 && strings.Contains(res.Stdout, ref.Winget), nil
+}
+
+func (w *WingetManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Winget == "" {
+		return ""
+	}
+	return "winget install --id " + ref.Winget + " --exact --silent"
 }
 
 func (w *WingetManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
@@ -47,6 +57,5 @@ func (w *WingetManager) Install(ctx context.Context, ref domain.PackageRef) (*po
 		"--exact",
 		"--silent",
 		"--accept-package-agreements",
-		"--accept-source-agreements",
 	})
 }

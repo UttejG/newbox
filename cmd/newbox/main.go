@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,6 +31,32 @@ var (
 )
 
 func main() {
+	// Find if 'list' is the first non-flag argument, scanning past any flags so
+	// that e.g. "newbox --dry-run list" is handled correctly.
+	listIdx := -1
+	for i, arg := range os.Args[1:] {
+		if arg == "list" {
+			listIdx = i + 1 // index in os.Args
+			break
+		}
+		if !strings.HasPrefix(arg, "-") {
+			break // first non-flag arg is not "list"
+		}
+	}
+	if listIdx >= 0 {
+		d := &detector.SystemDetector{}
+		platform, err := d.Detect()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error detecting platform: %v\n", err)
+			os.Exit(1)
+		}
+		if err := runList(platform, os.Args[listIdx+1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	dryRun := flag.Bool("dry-run", false, "Simulate installation without executing commands")
 	summary := flag.Bool("summary", false, "Print a text summary of the install plan (requires --dry-run)")
 	jsonOutput := flag.Bool("json", false, "Output as JSON (use with --dry-run)")
@@ -40,6 +68,14 @@ func main() {
 		return
 	}
 
+	if *summary && !*dryRun {
+		fmt.Fprintln(os.Stderr, "Error: --summary requires --dry-run")
+		os.Exit(2)
+	}
+	if *jsonOutput && !*dryRun {
+		fmt.Fprintln(os.Stderr, "Error: --json requires --dry-run")
+		os.Exit(2)
+	}
 
 	d := &detector.SystemDetector{}
 	platform, err := d.Detect()
@@ -48,47 +84,55 @@ func main() {
 		os.Exit(1)
 	}
 
-	args := flag.Args()
-	if len(args) > 0 && args[0] == "list" {
-		runList(platform, args[1:])
-		return
-	}
-
 	// Choose CommandRunner based on dry-run flag.
 	var cmdRunner port.CommandRunner
-	dryRunner := &runner.DryRunRunner{}
 	if *dryRun {
-		cmdRunner = dryRunner
+		cmdRunner = &runner.DryRunRunner{}
 	} else {
 		cmdRunner = &runner.ExecRunner{}
 	}
 
-	// Wire state store for resume support.
-	store, err := statestore.NewFileStore()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not init state store: %v\n", err)
+	// Wire state store for resume support (only when not doing a dry-run).
+	var store port.StateStore
+	if !*dryRun {
+		if fs, err := statestore.NewFileStore(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: state store unavailable: %v\n", err)
+		} else {
+			store = fs
+		}
 	}
 
-	// Offer resume if a previous install was interrupted.
-	if store != nil && store.Exists() {
-		savedState, _ := store.Load()
-		if savedState != nil && len(savedState.CompletedIDs) > 0 {
-			fmt.Fprintf(os.Stderr, "\nPrevious install found (%d tools completed). Resume? [Y/n]: ",
-				len(savedState.CompletedIDs))
-			scanner := bufio.NewScanner(os.Stdin)
-			scanner.Scan()
-			answer := strings.TrimSpace(scanner.Text())
-			if strings.EqualFold(answer, "n") {
-				_ = store.Clear()
+	// Offer resume if stdin is a TTY and a previous install was interrupted.
+	if !*dryRun {
+		if fi, stdinErr := os.Stdin.Stat(); stdinErr == nil && (fi.Mode()&os.ModeCharDevice) != 0 {
+			if store != nil && store.Exists() {
+				savedState, _ := store.Load()
+				if savedState != nil && len(savedState.CompletedIDs) > 0 {
+					fmt.Fprintf(os.Stderr, "\nPrevious install found (%d tools completed). Resume? [Y/n]: ",
+						len(savedState.CompletedIDs))
+					scanner := bufio.NewScanner(os.Stdin)
+					scanner.Scan()
+					answer := strings.TrimSpace(scanner.Text())
+					if strings.EqualFold(answer, "n") {
+						_ = store.Clear()
+					}
+				}
 			}
 		}
 	}
 
 	// Wire adapters.
-	pkgManager := pkgmgr.NewForPlatform(platform, cmdRunner)
 	syschecker := &checker.SystemChecker{Runner: cmdRunner}
-	installSvc := service.NewInstallService(pkgManager, syschecker, store, *dryRun)
 	catalogSvc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
+
+	// Select package manager based on the detected platform; leave installSvc nil
+	// (disabling the install flow) for platforms not yet supported.
+	var installSvc port.InstallService
+	switch platform.OS {
+	case domain.OSMacOS, domain.OSWindows, domain.OSLinux:
+		mgr := pkgmgr.NewForPlatform(platform, cmdRunner)
+		installSvc = service.NewInstallService(mgr, syschecker, store, *dryRun)
+	}
 
 	// Non-interactive summary mode.
 	if *dryRun && (*summary || *jsonOutput) {
@@ -110,9 +154,14 @@ func main() {
 	sel := appModel.FinalSelection()
 	if sel != nil && sel.TotalCount() > 0 {
 		fmt.Printf("\nSelected %d tools:\n", sel.TotalCount())
-		for catID, tools := range sel.ToolsByCategory {
+		catIDs := make([]string, 0, len(sel.ToolsByCategory))
+		for catID := range sel.ToolsByCategory {
+			catIDs = append(catIDs, catID)
+		}
+		sort.Strings(catIDs)
+		for _, catID := range catIDs {
 			fmt.Printf("  %s:\n", catID)
-			for _, t := range tools {
+			for _, t := range sel.ToolsByCategory[catID] {
 				fmt.Printf("    • %s\n", t.Name)
 			}
 		}
@@ -121,6 +170,10 @@ func main() {
 
 // runSummary prints a dry-run install plan for all tools on the current platform.
 func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, installSvc port.InstallService, asJSON bool) {
+	if installSvc == nil {
+		fmt.Fprintf(os.Stderr, "Error: installation is not supported on %s\n", platform.OS)
+		os.Exit(1)
+	}
 	cats, err := catalogSvc.GetCategories(platform.OS)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading catalog: %v\n", err)
@@ -152,7 +205,7 @@ func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, insta
 			WouldInstall     int `json:"would_install"`
 			AlreadyInstalled int `json:"already_installed"`
 		}
-		type jsonOutput struct {
+		type jsonOut struct {
 			Platform string      `json:"platform"`
 			Profile  string      `json:"profile"`
 			Steps    []jsonStep  `json:"steps"`
@@ -172,7 +225,7 @@ func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, insta
 			})
 		}
 
-		out := jsonOutput{
+		out := jsonOut{
 			Platform: platform.Summary(),
 			Profile:  "all",
 			Steps:    steps,
@@ -205,18 +258,20 @@ func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, insta
 	fmt.Printf("\n  Total: %d would install, %d would skip\n", len(pending), len(skipped))
 }
 
-func runList(platform *domain.Platform, args []string) {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+func runList(platform *domain.Platform, args []string) error {
+	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	categoryFlag := fs.String("category", "", "Filter to a specific category ID")
 	if err := fs.Parse(args); err != nil {
-		os.Exit(1)
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
 	}
 
 	svc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
 	categories, err := svc.GetCategories(platform.OS)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading catalog: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("loading catalog: %w", err)
 	}
 
 	fmt.Printf("Available tools on %s\n\n", platform.Summary())
@@ -237,7 +292,5 @@ func runList(platform *domain.Platform, args []string) {
 		}
 		fmt.Println()
 	}
+	return nil
 }
-
-
-

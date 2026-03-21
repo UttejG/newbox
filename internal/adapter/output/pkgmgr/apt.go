@@ -32,12 +32,22 @@ func (a *AptManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 	}
 	res, err := a.runner.Run(ctx, "dpkg-query", []string{"-W", "-f=${Status}", ref.Apt})
 	if err != nil {
-		return false, nil
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
 	}
 	if res.DryRun {
 		return false, nil
 	}
 	return strings.Contains(res.Stdout, "install ok installed"), nil
+}
+
+func (a *AptManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Apt == "" {
+		return ""
+	}
+	return "apt-get install -y " + ref.Apt
 }
 
 func (a *AptManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
