@@ -119,6 +119,7 @@ func TestWingetManager_Install(t *testing.T) {
 			wantArgs: []string{
 				"install", "--id", "Mozilla.Firefox",
 				"--exact", "--silent",
+				"--disable-interactivity",
 				"--accept-package-agreements",
 				"--accept-source-agreements",
 			},

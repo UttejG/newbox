@@ -111,17 +111,9 @@ catalogSvc := service.NewCatalogService(&catalogprovider.EmbeddedProvider{})
 // (disabling the install flow) for platforms not yet supported.
 var installSvc port.InstallService
 switch platform.OS {
-case domain.OSMacOS:
-brew := pkgmgr.NewBrew(cmdRunner)
-mas := pkgmgr.NewMAS(cmdRunner)
-composite := pkgmgr.NewComposite(brew, mas)
-installSvc = service.NewInstallService(composite, syschecker, store, *dryRun, os.Stderr)
-case domain.OSWindows:
-wingetMgr := pkgmgr.NewForPlatform(platform, cmdRunner)
-installSvc = service.NewInstallService(wingetMgr, syschecker, store, *dryRun, os.Stderr)
-case domain.OSLinux:
-linuxMgr := pkgmgr.NewForPlatform(platform, cmdRunner)
-installSvc = service.NewInstallService(linuxMgr, syschecker, store, *dryRun, os.Stderr)
+case domain.OSMacOS, domain.OSWindows, domain.OSLinux:
+mgr := pkgmgr.NewForPlatform(platform, cmdRunner)
+installSvc = service.NewInstallService(mgr, syschecker, store, *dryRun, os.Stderr)
 }
 
 // Non-interactive summary mode.

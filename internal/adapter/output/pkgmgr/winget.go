@@ -44,10 +44,15 @@ res, err := w.runner.Run(ctx, "winget", []string{"list", "--id", ref.Winget, "--
 if res != nil && res.DryRun {
 return false, nil
 }
-if err != nil {
+if res != nil && res.ExitCode != 0 {
+// winget list exits non-zero when the package is not installed — not an error.
 return false, nil
 }
-return res.ExitCode == 0 && strings.Contains(res.Stdout, ref.Winget), nil
+if err != nil {
+// Command failed to execute entirely (winget not on PATH, context cancelled, etc.).
+return false, fmt.Errorf("checking %s: %w", ref.Winget, err)
+}
+return strings.Contains(res.Stdout, ref.Winget), nil
 }
 
 func (w *WingetManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
@@ -59,6 +64,7 @@ return w.runner.Run(ctx, "winget", []string{
 "--id", ref.Winget,
 "--exact",
 "--silent",
+"--disable-interactivity",
 "--accept-package-agreements",
 "--accept-source-agreements",
 })
@@ -69,5 +75,5 @@ func (w *WingetManager) BuildCommand(ref domain.PackageRef) string {
 if ref.Winget == "" {
 return ""
 }
-return fmt.Sprintf("winget install --id %s --exact --silent --accept-package-agreements --accept-source-agreements", ref.Winget)
+return fmt.Sprintf("winget install --id %s --exact --silent --disable-interactivity --accept-package-agreements --accept-source-agreements", ref.Winget)
 }
