@@ -21,17 +21,17 @@ func TestBrewManager_IsAvailable(t *testing.T) {
 	tests := []struct {
 		name    string
 		results []*port.RunResult
-		wantErr bool
+		want    bool
 	}{
 		{
 			name:    "brew available",
 			results: []*port.RunResult{{ExitCode: 0}},
-			wantErr: false,
+			want:    true,
 		},
 		{
 			name:    "brew not available",
 			results: []*port.RunResult{{ExitCode: 1}},
-			wantErr: true,
+			want:    false,
 		},
 	}
 
@@ -39,9 +39,9 @@ func TestBrewManager_IsAvailable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := &testutil.FakeRunner{Results: tt.results}
 			b := pkgmgr.NewBrew(fake)
-			err := b.IsAvailable(context.Background())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("IsAvailable() error = %v, wantErr %v", err, tt.wantErr)
+			got := b.IsAvailable(context.Background())
+			if got != tt.want {
+				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
 			}
 			if len(fake.Calls) != 1 {
 				t.Fatalf("expected 1 call, got %d", len(fake.Calls))
@@ -148,7 +148,7 @@ func TestBrewManager_Install(t *testing.T) {
 			wantArgs: []string{"install", "--cask", "signal"},
 		},
 		{
-			name:    "empty ref returns error",
+			name:    "empty ref does nothing",
 			ref:     domain.PackageRef{},
 			wantNil: true,
 		},
@@ -159,17 +159,14 @@ func TestBrewManager_Install(t *testing.T) {
 			fake := &testutil.FakeRunner{}
 			b := pkgmgr.NewBrew(fake)
 			res, err := b.Install(context.Background(), tt.ref)
+			if err != nil {
+				t.Fatalf("Install() error = %v", err)
+			}
 			if tt.wantNil {
-				if err == nil {
-					t.Fatal("expected error for empty ref, got nil")
-				}
 				if res != nil {
 					t.Error("expected nil result for empty ref")
 				}
 				return
-			}
-			if err != nil {
-				t.Fatalf("Install() error = %v", err)
 			}
 			if len(fake.Calls) != 1 {
 				t.Fatalf("expected 1 call, got %d", len(fake.Calls))

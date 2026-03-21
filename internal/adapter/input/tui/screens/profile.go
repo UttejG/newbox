@@ -1,9 +1,7 @@
 package screens
 
 import (
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
 )
@@ -25,23 +23,23 @@ func (m ProfileModel) Init() tea.Cmd { return nil }
 func (m ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, keys.List.Up):
+		switch msg.String() {
+		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
 			}
-		case key.Matches(msg, keys.List.Down):
+		case "down", "j":
 			if m.cursor < len(m.profiles)-1 {
 				m.cursor++
 			}
-		case key.Matches(msg, keys.List.Select):
+		case "enter":
 			if len(m.profiles) > 0 {
 				selected := m.profiles[m.cursor]
 				return m, func() tea.Msg { return ProfileSelected{Profile: selected} }
 			}
-		case key.Matches(msg, keys.List.Back):
+		case "esc":
 			return m, func() tea.Msg { return ProfileBack{} }
-		case key.Matches(msg, keys.List.Quit):
+		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 	}
@@ -56,6 +54,7 @@ func (m ProfileModel) View() string {
 	for i, p := range m.profiles {
 		cursor := "  "
 		nameStyle := styles.ItemNameStyle
+		descStyle := styles.ItemDescStyle
 
 		if i == m.cursor {
 			cursor = styles.SelectedStyle.Render("▸ ")
@@ -63,7 +62,7 @@ func (m ProfileModel) View() string {
 		}
 
 		items += cursor + nameStyle.Render(p.Name) + "\n"
-		items += "    " + styles.ItemDescStyle.Render(p.Description) + "\n\n"
+		items += "    " + descStyle.Render(p.Description) + "\n\n"
 	}
 
 	help := styles.HelpStyle.Render("↑/↓ navigate  •  Enter select  •  Esc back  •  q quit")

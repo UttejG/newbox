@@ -3,10 +3,7 @@ package screens
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
 )
@@ -28,14 +25,14 @@ func (m ConfirmModel) Init() tea.Cmd { return nil }
 func (m ConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, keys.List.Select):
+		switch msg.String() {
+		case "enter":
 			if m.selection.TotalCount() > 0 {
 				return m, func() tea.Msg { return ConfirmProceed{Selection: m.selection} }
 			}
-		case key.Matches(msg, keys.List.Back):
+		case "esc":
 			return m, func() tea.Msg { return ConfirmBack{} }
-		case key.Matches(msg, keys.List.Quit):
+		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 	}
@@ -55,7 +52,7 @@ func (m ConfirmModel) View() string {
 			continue
 		}
 
-		catName := lipgloss.NewStyle().Foreground(styles.Primary).Bold(true).Render(
+		catName := styles.CatHeaderStyle.Render(
 			fmt.Sprintf("%s (%d)", cat.Name, len(tools)),
 		)
 		body += "  " + catName + "\n"
@@ -70,14 +67,14 @@ func (m ConfirmModel) View() string {
 	}
 
 	if total == 0 {
-		body = lipgloss.NewStyle().Foreground(styles.Warning).Render("  Nothing selected. Go back and choose some tools.") + "\n\n"
+		body = styles.WarningTextStyle.Render("  Nothing selected. Go back and choose some tools.") + "\n\n"
 	}
 
 	var proceedHint string
 	if total > 0 {
-		proceedHint = lipgloss.NewStyle().Foreground(styles.Success).Bold(true).Render("  Enter: Install")
+		proceedHint = styles.ProceedStyle.Render("  Enter: Install")
 	} else {
-		proceedHint = lipgloss.NewStyle().Foreground(styles.Muted).Render("  (select tools first)")
+		proceedHint = styles.MutedTextStyle.Render("  (select tools first)")
 	}
 	help := styles.HelpStyle.Render("  Esc: go back  •  q: quit")
 

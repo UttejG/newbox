@@ -21,17 +21,17 @@ func TestFlatpakManager_IsAvailable(t *testing.T) {
 	tests := []struct {
 		name    string
 		results []*port.RunResult
-		wantErr bool
+		want    bool
 	}{
 		{
 			name:    "flatpak available",
 			results: []*port.RunResult{{ExitCode: 0}},
-			wantErr: false,
+			want:    true,
 		},
 		{
 			name:    "flatpak not available",
 			results: []*port.RunResult{{ExitCode: 1}},
-			wantErr: true,
+			want:    false,
 		},
 	}
 
@@ -40,8 +40,8 @@ func TestFlatpakManager_IsAvailable(t *testing.T) {
 			fake := &testutil.FakeRunner{Results: tt.results}
 			f := pkgmgr.NewFlatpak(fake)
 			got := f.IsAvailable(context.Background())
-			if (got != nil) != tt.wantErr {
-				t.Errorf("IsAvailable() error = %v, wantErr %v", got, tt.wantErr)
+			if got != tt.want {
+				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
 			}
 			if len(fake.Calls) != 1 {
 				t.Fatalf("expected 1 call, got %d", len(fake.Calls))
@@ -64,7 +64,7 @@ func TestFlatpakManager_IsInstalled(t *testing.T) {
 		{
 			name:    "installed",
 			ref:     domain.PackageRef{Flatpak: "org.signal.Signal"},
-			results: []*port.RunResult{{ExitCode: 0, Stdout: "org.signal.Signal\n"}},
+			results: []*port.RunResult{{ExitCode: 0, Stdout: "Signal\torg.signal.Signal\t1.0"}},
 			want:    true,
 		},
 		{

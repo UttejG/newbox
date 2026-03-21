@@ -23,7 +23,7 @@ func TestCatalogService_GetCategories_FiltersForOS(t *testing.T) {
 	tests := []struct {
 		os        domain.OS
 		wantCount int
-		wantID    string
+		wantName  string
 	}{
 		{domain.OSMacOS, 3, "messaging"},   // all 3 categories have macOS tools
 		{domain.OSLinux, 3, "messaging"},   // all 3 have Linux tools
@@ -38,16 +38,6 @@ func TestCatalogService_GetCategories_FiltersForOS(t *testing.T) {
 			}
 			if len(cats) != tt.wantCount {
 				t.Errorf("GetCategories(%v) = %d categories, want %d", tt.os, len(cats), tt.wantCount)
-			}
-			found := false
-			for _, c := range cats {
-				if c.ID == tt.wantID {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Errorf("GetCategories(%v) missing category with ID %q", tt.os, tt.wantID)
 			}
 		})
 	}

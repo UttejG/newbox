@@ -57,26 +57,25 @@ type yamlProfiles struct {
 }
 
 // EmbeddedProvider implements port.CatalogProvider using go:embed YAML files.
-// Parsing is done once per provider instance and cached via sync.Once.
+// Parsed results are cached after the first load.
 type EmbeddedProvider struct {
-	categoriesOnce sync.Once
-	categories     []domain.Category
-	categoriesErr  error
+	catsOnce sync.Once
+	cats     []domain.Category
+	catsErr  error
 
-	profilesOnce sync.Once
-	profiles     []domain.Profile
-	profilesErr  error
+	profsOnce sync.Once
+	profs     []domain.Profile
+	profsErr  error
 }
 
-// LoadCategories parses tools.yaml on the first call and returns cached results thereafter.
+// LoadCategories parses tools.yaml and returns all categories (cached after first call).
 func (p *EmbeddedProvider) LoadCategories() ([]domain.Category, error) {
-	p.categoriesOnce.Do(func() {
+	p.catsOnce.Do(func() {
 		var raw yamlCatalog
 		if err := yaml.Unmarshal(catalog.ToolsYAML, &raw); err != nil {
-			p.categoriesErr = fmt.Errorf("parsing embedded tools.yaml: %w", err)
+			p.catsErr = fmt.Errorf("parsing embedded tools.yaml: %w", err)
 			return
 		}
-
 		categories := make([]domain.Category, 0, len(raw.Categories))
 		for _, rc := range raw.Categories {
 			cat := domain.Category{
@@ -99,20 +98,19 @@ func (p *EmbeddedProvider) LoadCategories() ([]domain.Category, error) {
 			}
 			categories = append(categories, cat)
 		}
-		p.categories = categories
+		p.cats = categories
 	})
-	return p.categories, p.categoriesErr
+	return p.cats, p.catsErr
 }
 
-// LoadProfiles parses profiles.yaml on the first call and returns cached results thereafter.
+// LoadProfiles parses profiles.yaml and returns all profiles (cached after first call).
 func (p *EmbeddedProvider) LoadProfiles() ([]domain.Profile, error) {
-	p.profilesOnce.Do(func() {
+	p.profsOnce.Do(func() {
 		var raw yamlProfiles
 		if err := yaml.Unmarshal(catalog.ProfilesYAML, &raw); err != nil {
-			p.profilesErr = fmt.Errorf("parsing embedded profiles.yaml: %w", err)
+			p.profsErr = fmt.Errorf("parsing embedded profiles.yaml: %w", err)
 			return
 		}
-
 		profiles := make([]domain.Profile, 0, len(raw.Profiles))
 		for _, rp := range raw.Profiles {
 			profiles = append(profiles, domain.Profile{
@@ -123,9 +121,9 @@ func (p *EmbeddedProvider) LoadProfiles() ([]domain.Profile, error) {
 				Categories:    rp.Categories,
 			})
 		}
-		p.profiles = profiles
+		p.profs = profiles
 	})
-	return p.profiles, p.profilesErr
+	return p.profs, p.profsErr
 }
 
 func toPackageRef(r *yamlPkgRef) *domain.PackageRef {

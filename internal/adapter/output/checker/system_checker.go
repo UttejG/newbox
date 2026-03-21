@@ -15,7 +15,9 @@ type SystemChecker struct {
 }
 
 func (c *SystemChecker) CheckInternet(ctx context.Context) error {
-	client := &http.Client{Timeout: 10 * time.Second}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	client := &http.Client{}
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, "https://github.com", nil)
 	if err != nil {
 		return fmt.Errorf("building internet check request: %w", err)
@@ -24,7 +26,7 @@ func (c *SystemChecker) CheckInternet(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("no internet connection: %w", err)
 	}
-	defer resp.Body.Close()
+	resp.Body.Close()
 	return nil
 }
 

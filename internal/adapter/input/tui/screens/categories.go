@@ -3,9 +3,7 @@ package screens
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
 )
@@ -44,24 +42,24 @@ func (m CategoriesModel) Init() tea.Cmd { return nil }
 func (m CategoriesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, keys.Checklist.Up):
+		switch msg.String() {
+		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
 			}
-		case key.Matches(msg, keys.Checklist.Down):
+		case "down", "j":
 			if m.cursor < len(m.categories)-1 {
 				m.cursor++
 			}
-		case key.Matches(msg, keys.Checklist.Toggle):
+		case " ":
 			if len(m.checked) > m.cursor {
 				m.checked[m.cursor] = !m.checked[m.cursor]
 			}
-		case key.Matches(msg, keys.Checklist.Next):
+		case "tab", "enter":
 			return m, func() tea.Msg { return CategoriesDone{Selected: m.selectedCategories()} }
-		case key.Matches(msg, keys.Checklist.Back):
+		case "esc":
 			return m, func() tea.Msg { return CategoriesBack{} }
-		case key.Matches(msg, keys.Checklist.Quit):
+		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 	}
@@ -89,9 +87,7 @@ func (m CategoriesModel) View() string {
 			checkbox = styles.UncheckedStyle.Render("[ ] ")
 		}
 
-		toolCount := styles.ItemCountStyle.Render(
-			fmt.Sprintf(" (%d tools)", len(cat.Tools)),
-		)
+		toolCount := styles.ItemCountStyle.Render(fmt.Sprintf(" (%d tools)", len(cat.Tools)))
 
 		items += cursor + checkbox + nameStyle.Render(cat.Name) + toolCount + "\n"
 	}

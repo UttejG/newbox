@@ -9,13 +9,31 @@ import (
 	"github.com/uttejg/newbox/internal/core/domain"
 )
 
-// installStateDTO is the private JSON representation of domain.InstallState.
-// Keeping JSON tags here decouples the domain from infrastructure concerns.
+// installStateDTO is the persistence representation of domain.InstallState.
+// Keeping JSON tags here prevents coupling the domain model to serialisation.
 type installStateDTO struct {
 	CompletedIDs []string  `json:"completed_ids"`
 	FailedIDs    []string  `json:"failed_ids"`
 	StartedAt    time.Time `json:"started_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func toDTO(s *domain.InstallState) installStateDTO {
+	return installStateDTO{
+		CompletedIDs: s.CompletedIDs,
+		FailedIDs:    s.FailedIDs,
+		StartedAt:    s.StartedAt,
+		UpdatedAt:    s.UpdatedAt,
+	}
+}
+
+func fromDTO(d installStateDTO) *domain.InstallState {
+	return &domain.InstallState{
+		CompletedIDs: d.CompletedIDs,
+		FailedIDs:    d.FailedIDs,
+		StartedAt:    d.StartedAt,
+		UpdatedAt:    d.UpdatedAt,
+	}
 }
 
 // FileStore persists InstallState as JSON at ~/.newbox/state.json.
@@ -38,13 +56,7 @@ func NewFileStore() (*FileStore, error) {
 }
 
 func (f *FileStore) Save(state *domain.InstallState) error {
-	dto := installStateDTO{
-		CompletedIDs: state.CompletedIDs,
-		FailedIDs:    state.FailedIDs,
-		StartedAt:    state.StartedAt,
-		UpdatedAt:    state.UpdatedAt,
-	}
-	data, err := json.MarshalIndent(dto, "", "  ")
+	data, err := json.MarshalIndent(toDTO(state), "", "  ")
 	if err != nil {
 		return err
 	}
@@ -63,12 +75,7 @@ func (f *FileStore) Load() (*domain.InstallState, error) {
 	if err := json.Unmarshal(data, &dto); err != nil {
 		return nil, err
 	}
-	return &domain.InstallState{
-		CompletedIDs: dto.CompletedIDs,
-		FailedIDs:    dto.FailedIDs,
-		StartedAt:    dto.StartedAt,
-		UpdatedAt:    dto.UpdatedAt,
-	}, nil
+	return fromDTO(dto), nil
 }
 
 func (f *FileStore) Clear() error {

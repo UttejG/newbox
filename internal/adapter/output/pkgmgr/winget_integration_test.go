@@ -12,7 +12,7 @@ import (
 
 func TestWinget_Integration_IsAvailable(t *testing.T) {
 	w := pkgmgr.NewWinget(&runner.ExecRunner{})
-	if err := w.IsAvailable(context.Background()); err != nil {
-		t.Skip("winget not available:", err)
+	if !w.IsAvailable(context.Background()) {
+		t.Skip("winget not available")
 	}
 }

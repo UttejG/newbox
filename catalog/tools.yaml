@@ -35,6 +35,8 @@ categories:
           cask: whatsapp
         windows:
           winget: 9NKSQGP7F2NH  # Microsoft Store
+        linux:
+          flatpak: net.mkiol.SpeechNote
 
       - name: Discord
         description: "Voice, video, and text chat"
@@ -336,3 +338,724 @@ categories:
         linux:
           apt: sublime-text
           flatpak: com.sublimetext.three
+
+  - id: email-clients
+    name: "📧 Email Clients"
+    description: "Email and calendar clients"
+    tools:
+      - name: Spark
+        description: "Smart email client by Readdle"
+        dotfiles_default: true
+        macos:
+          mas: "1176895641"
+
+      - name: Thunderbird
+        description: "Free email client by Mozilla"
+        dotfiles_default: false
+        macos:
+          cask: thunderbird
+        windows:
+          winget: Mozilla.Thunderbird
+        linux:
+          apt: thunderbird
+          dnf: thunderbird
+          pacman: thunderbird
+          flatpak: org.mozilla.Thunderbird
+
+      - name: Mailspring
+        description: "Beautiful, fast email client"
+        dotfiles_default: false
+        macos:
+          cask: mailspring
+        linux:
+          apt: mailspring
+          flatpak: com.getmailspring.Mailspring
+
+  - id: terminal-emulators
+    name: "🖥️ Terminal Emulators"
+    description: "Terminal applications"
+    tools:
+      - name: iTerm2
+        description: "macOS terminal replacement"
+        dotfiles_default: true
+        macos:
+          cask: iterm2
+
+      - name: Ghostty
+        description: "Fast, native terminal emulator"
+        dotfiles_default: true
+        macos:
+          cask: ghostty
+        linux:
+          flatpak: com.mitchellh.ghostty
+
+      - name: Alacritty
+        description: "GPU-accelerated terminal"
+        dotfiles_default: false
+        macos:
+          cask: alacritty
+        windows:
+          winget: Alacritty.Alacritty
+        linux:
+          apt: alacritty
+          dnf: alacritty
+          pacman: alacritty
+
+      - name: Warp
+        description: "Modern AI-powered terminal"
+        dotfiles_default: false
+        macos:
+          cask: warp
+        linux:
+          apt: warp-terminal
+
+      - name: Windows Terminal
+        description: "Modern Windows terminal"
+        dotfiles_default: false
+        windows:
+          winget: Microsoft.WindowsTerminal
+
+  - id: ides
+    name: "🏗️ IDEs"
+    description: "Integrated development environments"
+    tools:
+      - name: JetBrains Toolbox
+        description: "Manage all JetBrains IDEs"
+        dotfiles_default: true
+        macos:
+          cask: jetbrains-toolbox
+        windows:
+          winget: JetBrains.Toolbox
+        linux:
+          flatpak: com.jetbrains.Toolbox
+
+      - name: Xcode
+        description: "Apple's IDE for macOS/iOS development"
+        dotfiles_default: true
+        macos:
+          mas: "497799835"
+
+      - name: Android Studio
+        description: "Google's IDE for Android"
+        dotfiles_default: false
+        macos:
+          cask: android-studio
+        windows:
+          winget: Google.AndroidStudio
+        linux:
+          flatpak: com.google.AndroidStudio
+
+  - id: shell-setup
+    name: "🐚 Shell Setup"
+    description: "Shell environments and prompts"
+    tools:
+      - name: Fish Shell
+        description: "Friendly interactive shell"
+        dotfiles_default: false
+        macos:
+          formula: fish
+        linux:
+          apt: fish
+          dnf: fish
+          pacman: fish
+
+      - name: Starship
+        description: "Cross-shell prompt"
+        dotfiles_default: true
+        macos:
+          formula: starship
+        windows:
+          winget: Starship.Starship
+        linux:
+          apt: starship
+          dnf: starship
+          pacman: starship
+
+      - name: zsh-autosuggestions
+        description: "Fish-like autosuggestions for zsh"
+        dotfiles_default: true
+        macos:
+          formula: zsh-autosuggestions
+        linux:
+          apt: zsh-autosuggestions
+          pacman: zsh-autosuggestions
+
+      - name: zsh-syntax-highlighting
+        description: "Fish-like syntax highlighting for zsh"
+        dotfiles_default: true
+        macos:
+          formula: zsh-syntax-highlighting
+        linux:
+          apt: zsh-syntax-highlighting
+          pacman: zsh-syntax-highlighting
+
+  - id: containers-vms
+    name: "🐳 Containers & VMs"
+    description: "Containerization and virtualization"
+    tools:
+      - name: Docker Desktop
+        description: "Container platform"
+        dotfiles_default: true
+        macos:
+          cask: docker
+        windows:
+          winget: Docker.DockerDesktop
+        linux:
+          apt: docker-ce
+          dnf: docker-ce
+          pacman: docker
+
+      - name: Podman Desktop
+        description: "Daemonless container engine"
+        dotfiles_default: false
+        macos:
+          cask: podman-desktop
+        windows:
+          winget: RedHat.Podman-Desktop
+        linux:
+          apt: podman
+          dnf: podman
+          pacman: podman
+
+      - name: UTM
+        description: "Virtual machines for Mac"
+        dotfiles_default: false
+        macos:
+          cask: utm
+
+  - id: cloud-clis
+    name: "☁️ Cloud CLIs"
+    description: "Cloud provider and DevOps CLIs"
+    tools:
+      - name: AWS CLI
+        description: "Amazon Web Services CLI"
+        dotfiles_default: true
+        macos:
+          formula: awscli
+        windows:
+          winget: Amazon.AWSCLI
+        linux:
+          apt: awscli
+          dnf: awscli
+          pacman: aws-cli
+
+      - name: Azure CLI
+        description: "Microsoft Azure CLI"
+        dotfiles_default: false
+        macos:
+          formula: azure-cli
+        windows:
+          winget: Microsoft.AzureCLI
+        linux:
+          apt: azure-cli
+          dnf: azure-cli
+
+      - name: Google Cloud SDK
+        description: "Google Cloud Platform CLI"
+        dotfiles_default: false
+        macos:
+          cask: google-cloud-sdk
+        windows:
+          winget: Google.CloudSDK
+        linux:
+          apt: google-cloud-sdk
+
+      - name: Terraform
+        description: "Infrastructure as Code tool"
+        dotfiles_default: true
+        macos:
+          formula: terraform
+        windows:
+          winget: Hashicorp.Terraform
+        linux:
+          apt: terraform
+          dnf: terraform
+
+      - name: kubectl
+        description: "Kubernetes CLI"
+        dotfiles_default: true
+        macos:
+          formula: kubernetes-cli
+        windows:
+          winget: Kubernetes.kubectl
+        linux:
+          apt: kubectl
+          dnf: kubectl
+          pacman: kubectl
+
+      - name: Helm
+        description: "Kubernetes package manager"
+        dotfiles_default: false
+        macos:
+          formula: helm
+        windows:
+          winget: Helm.Helm
+        linux:
+          apt: helm
+          dnf: helm
+          pacman: helm
+
+  - id: databases
+    name: "🗄️ Databases"
+    description: "Database servers"
+    tools:
+      - name: PostgreSQL
+        description: "Advanced open-source database"
+        dotfiles_default: true
+        macos:
+          formula: postgresql@17
+        linux:
+          apt: postgresql
+          dnf: postgresql-server
+          pacman: postgresql
+
+      - name: MySQL
+        description: "Popular relational database"
+        dotfiles_default: false
+        macos:
+          formula: mysql
+        linux:
+          apt: mysql-server
+          dnf: mysql-server
+          pacman: mysql
+
+      - name: Redis
+        description: "In-memory data store"
+        dotfiles_default: true
+        macos:
+          formula: redis
+        linux:
+          apt: redis-server
+          dnf: redis
+          pacman: redis
+
+      - name: SQLite
+        description: "Lightweight embedded database"
+        dotfiles_default: false
+        macos:
+          formula: sqlite
+        linux:
+          apt: sqlite3
+          dnf: sqlite
+          pacman: sqlite
+
+  - id: db-clients
+    name: "🗄️ DB Clients"
+    description: "Database GUI clients"
+    tools:
+      - name: TablePlus
+        description: "Modern database GUI"
+        dotfiles_default: true
+        macos:
+          cask: tableplus
+        windows:
+          winget: TablePlus.TablePlus
+        linux:
+          flatpak: com.tableplus.TablePlus
+
+      - name: DBeaver
+        description: "Universal database client"
+        dotfiles_default: false
+        macos:
+          cask: dbeaver-community
+        windows:
+          winget: dbeaver.dbeaver
+        linux:
+          apt: dbeaver-ce
+          flatpak: io.dbeaver.DBeaverCommunity
+
+  - id: languages-runtimes
+    name: "🐍 Languages & Runtimes"
+    description: "Programming language runtimes"
+    tools:
+      - name: Node.js
+        description: "JavaScript runtime"
+        dotfiles_default: true
+        macos:
+          formula: node
+        windows:
+          winget: OpenJS.NodeJS
+        linux:
+          apt: nodejs
+          dnf: nodejs
+          pacman: nodejs
+
+      - name: Python 3
+        description: "Python programming language"
+        dotfiles_default: true
+        macos:
+          formula: python@3.13
+        windows:
+          winget: Python.Python.3
+        linux:
+          apt: python3
+          dnf: python3
+          pacman: python
+
+      - name: Go
+        description: "Google's programming language"
+        dotfiles_default: true
+        macos:
+          formula: go
+        windows:
+          winget: GoLang.Go
+        linux:
+          apt: golang-go
+          dnf: golang
+          pacman: go
+
+      - name: Rust
+        description: "Systems programming language"
+        dotfiles_default: false
+        macos:
+          formula: rustup
+        windows:
+          winget: Rustlang.Rustup
+        linux:
+          apt: rustup
+          dnf: rustup
+          pacman: rustup
+
+      - name: OpenJDK
+        description: "Open-source Java runtime"
+        dotfiles_default: false
+        macos:
+          formula: openjdk
+        windows:
+          winget: Microsoft.OpenJDK.21
+        linux:
+          apt: openjdk-21-jdk
+          dnf: java-21-openjdk
+          pacman: jdk-openjdk
+
+      - name: .NET SDK
+        description: "Microsoft .NET platform"
+        dotfiles_default: false
+        macos:
+          cask: dotnet-sdk
+        windows:
+          winget: Microsoft.DotNet.SDK.8
+        linux:
+          apt: dotnet-sdk-8.0
+          dnf: dotnet-sdk-8.0
+
+  - id: version-managers
+    name: "📦 Version Managers"
+    description: "Manage multiple language versions"
+    tools:
+      - name: mise
+        description: "Polyglot version manager (replaces nvm, pyenv, etc.)"
+        dotfiles_default: true
+        macos:
+          formula: mise
+        windows:
+          winget: jdx.mise
+        linux:
+          apt: mise
+          dnf: mise
+          pacman: mise
+
+      - name: pyenv
+        description: "Python version management"
+        dotfiles_default: false
+        macos:
+          formula: pyenv
+        linux:
+          apt: pyenv
+          pacman: pyenv
+
+      - name: rbenv
+        description: "Ruby version management"
+        dotfiles_default: false
+        macos:
+          formula: rbenv
+        linux:
+          apt: rbenv
+          pacman: rbenv
+
+  - id: media-players
+    name: "🎬 Media Players"
+    description: "Audio and video players"
+    tools:
+      - name: VLC
+        description: "Free, open-source media player"
+        dotfiles_default: true
+        macos:
+          cask: vlc
+        windows:
+          winget: VideoLAN.VLC
+        linux:
+          apt: vlc
+          dnf: vlc
+          pacman: vlc
+          flatpak: org.videolan.VLC
+
+      - name: Spotify
+        description: "Music streaming"
+        dotfiles_default: true
+        macos:
+          cask: spotify
+        windows:
+          winget: Spotify.Spotify
+        linux:
+          apt: spotify-client
+          flatpak: com.spotify.Client
+
+      - name: IINA
+        description: "Modern macOS media player"
+        dotfiles_default: true
+        macos:
+          cask: iina
+
+  - id: creative-tools
+    name: "🎨 Creative Tools"
+    description: "Design, graphics, and media creation"
+    tools:
+      - name: Figma
+        description: "Collaborative design tool"
+        dotfiles_default: false
+        macos:
+          cask: figma
+        windows:
+          winget: Figma.Figma
+        linux:
+          flatpak: io.github.Figma_Linux.figma_linux
+
+      - name: GIMP
+        description: "GNU Image Manipulation Program"
+        dotfiles_default: false
+        macos:
+          cask: gimp
+        windows:
+          winget: GIMP.GIMP
+        linux:
+          apt: gimp
+          dnf: gimp
+          pacman: gimp
+          flatpak: org.gimp.GIMP
+
+      - name: OBS Studio
+        description: "Live streaming and recording"
+        dotfiles_default: false
+        macos:
+          cask: obs
+        windows:
+          winget: OBSProject.OBSStudio
+        linux:
+          apt: obs-studio
+          dnf: obs-studio
+          pacman: obs-studio
+          flatpak: com.obsproject.Studio
+
+      - name: ImageOptim
+        description: "Lossless image optimizer"
+        dotfiles_default: true
+        macos:
+          cask: imageoptim
+
+  - id: productivity
+    name: "📋 Productivity"
+    description: "Note-taking, launchers, and window management"
+    tools:
+      - name: Notion
+        description: "All-in-one workspace"
+        dotfiles_default: false
+        macos:
+          cask: notion
+        windows:
+          winget: Notion.Notion
+        linux:
+          flatpak: notion.id
+
+      - name: Obsidian
+        description: "Knowledge base and note-taking"
+        dotfiles_default: true
+        macos:
+          cask: obsidian
+        windows:
+          winget: Obsidian.Obsidian
+        linux:
+          flatpak: md.obsidian.Obsidian
+
+      - name: Raycast
+        description: "Productivity launcher for macOS"
+        dotfiles_default: true
+        macos:
+          cask: raycast
+
+      - name: Rectangle
+        description: "Window management for macOS"
+        dotfiles_default: true
+        macos:
+          cask: rectangle
+
+      - name: Alfred
+        description: "Productivity app and launcher"
+        dotfiles_default: false
+        macos:
+          cask: alfred
+
+  - id: security-privacy
+    name: "🔐 Security & Privacy"
+    description: "Password managers and security tools"
+    tools:
+      - name: 1Password
+        description: "Password manager"
+        dotfiles_default: true
+        macos:
+          cask: 1password
+        windows:
+          winget: AgileBits.1Password
+        linux:
+          apt: 1password
+          flatpak: com.onepassword.OnePassword
+
+      - name: Bitwarden
+        description: "Open-source password manager"
+        dotfiles_default: false
+        macos:
+          cask: bitwarden
+        windows:
+          winget: Bitwarden.Bitwarden
+        linux:
+          apt: bitwarden
+          flatpak: com.bitwarden.desktop
+
+      - name: GnuPG
+        description: "GNU Privacy Guard"
+        dotfiles_default: true
+        macos:
+          formula: gnupg
+        linux:
+          apt: gnupg
+          dnf: gnupg2
+          pacman: gnupg
+
+  - id: cloud-storage
+    name: "☁️ Cloud Storage"
+    description: "Cloud file sync and storage"
+    tools:
+      - name: Dropbox
+        description: "Cloud storage and sync"
+        dotfiles_default: false
+        macos:
+          cask: dropbox
+        windows:
+          winget: Dropbox.Dropbox
+        linux:
+          apt: dropbox
+          flatpak: com.dropbox.Client
+
+      - name: Google Drive
+        description: "Google's cloud storage"
+        dotfiles_default: false
+        macos:
+          cask: google-drive
+        windows:
+          winget: Google.GoogleDrive
+
+  - id: ai-tools
+    name: "🤖 AI Tools"
+    description: "AI assistants and local LLMs"
+    tools:
+      - name: Ollama
+        description: "Run LLMs locally"
+        dotfiles_default: false
+        macos:
+          cask: ollama
+        windows:
+          winget: Ollama.Ollama
+        linux:
+          apt: ollama
+
+      - name: ChatGPT
+        description: "OpenAI ChatGPT desktop app"
+        dotfiles_default: false
+        macos:
+          cask: chatgpt
+        windows:
+          winget: OpenAI.ChatGPT
+
+      - name: Claude
+        description: "Anthropic Claude desktop app"
+        dotfiles_default: false
+        macos:
+          cask: claude
+        windows:
+          winget: Anthropic.Claude
+
+  - id: finance
+    name: "💰 Finance"
+    description: "Finance and accounting tools"
+    tools:
+      - name: GnuCash
+        description: "Personal and business accounting"
+        dotfiles_default: false
+        macos:
+          cask: gnucash
+        windows:
+          winget: GnuCash.GnuCash
+        linux:
+          apt: gnucash
+          dnf: gnucash
+          pacman: gnucash
+          flatpak: org.gnucash.GnuCash
+
+  - id: networking
+    name: "📡 Networking"
+    description: "Network analysis and API tools"
+    tools:
+      - name: Wireshark
+        description: "Network protocol analyzer"
+        dotfiles_default: false
+        macos:
+          cask: wireshark
+        windows:
+          winget: WiresharkFoundation.Wireshark
+        linux:
+          apt: wireshark
+          dnf: wireshark
+          pacman: wireshark-qt
+          flatpak: org.wireshark.Wireshark
+
+      - name: Postman
+        description: "API development platform"
+        dotfiles_default: true
+        macos:
+          cask: postman
+        windows:
+          winget: Postman.Postman
+        linux:
+          flatpak: com.getpostman.Postman
+
+      - name: ngrok
+        description: "Expose local servers to the internet"
+        dotfiles_default: false
+        macos:
+          formula: ngrok
+        windows:
+          winget: ngrok.ngrok
+        linux:
+          apt: ngrok
+
+  - id: screenshot-record
+    name: "🖼️ Screenshot & Record"
+    description: "Screen capture and recording tools"
+    tools:
+      - name: Flameshot
+        description: "Powerful screenshot tool"
+        dotfiles_default: false
+        macos:
+          cask: flameshot
+        windows:
+          winget: Flameshot.Flameshot
+        linux:
+          apt: flameshot
+          dnf: flameshot
+          pacman: flameshot
+
+      - name: Monosnap
+        description: "Screenshot and annotation tool"
+        dotfiles_default: true
+        macos:
+          mas: "540348655"

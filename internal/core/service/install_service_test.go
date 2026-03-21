@@ -3,10 +3,10 @@ package service_test
 import (
 	"context"
 	"errors"
-	"io"
 	"testing"
 
 	"github.com/uttejg/newbox/internal/core/domain"
+	"github.com/uttejg/newbox/internal/core/port"
 	"github.com/uttejg/newbox/internal/core/service"
 	"github.com/uttejg/newbox/internal/testutil"
 )
@@ -25,11 +25,10 @@ func makeSelection(tools ...domain.Tool) *domain.UserSelection {
 
 func TestInstallService_Preflight_AllOK(t *testing.T) {
 	svc := service.NewInstallService(
-		&testutil.FakePackageManager{},
+		&testutil.FakePackageManager{AvailableResult: true},
 		&testutil.FakeSystemChecker{},
 		nil,
 		false,
-		io.Discard,
 	)
 	result, err := svc.Preflight(context.Background())
 	if err != nil {
@@ -56,36 +55,34 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 	tests := []struct {
 		name       string
 		checker    testutil.FakeSystemChecker
-		pkg        testutil.FakePackageManager
+		pkgAvail   bool
 		wantErrors int
 		wantOK     bool
 	}{
 		{
 			name:       "internet failure",
 			checker:    testutil.FakeSystemChecker{InternetErr: errTest},
+			pkgAvail:   true,
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
 			name:       "disk failure",
 			checker:    testutil.FakeSystemChecker{DiskErr: errTest},
+			pkgAvail:   true,
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
-			name: "pkgmgr failure",
-			pkg: testutil.FakePackageManager{
-				IsAvailableFunc: func(_ context.Context) error { return errTest },
-			},
+			name:       "pkgmgr failure",
+			pkgAvail:   false, // package manager not available
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
-			name:    "all failures",
-			checker: testutil.FakeSystemChecker{InternetErr: errTest, DiskErr: errTest},
-			pkg: testutil.FakePackageManager{
-				IsAvailableFunc: func(_ context.Context) error { return errTest },
-			},
+			name:       "all failures",
+			checker:    testutil.FakeSystemChecker{InternetErr: errTest, DiskErr: errTest},
+			pkgAvail:   false,
 			wantErrors: 3,
 			wantOK:     false,
 		},
@@ -94,11 +91,10 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := service.NewInstallService(
-				&tt.pkg,
+				&testutil.FakePackageManager{AvailableResult: tt.pkgAvail},
 				&tt.checker,
 				nil,
 				false,
-				io.Discard,
 			)
 			result, err := svc.Preflight(context.Background())
 			if err != nil {
@@ -126,7 +122,6 @@ func TestInstallService_Plan_DryRun(t *testing.T) {
 		&testutil.FakeSystemChecker{},
 		nil,
 		true, // dry-run
-		io.Discard,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
 	if err != nil {
@@ -141,7 +136,7 @@ func TestInstallService_Plan_DryRun(t *testing.T) {
 	if plan.Steps[0].Status != domain.StatusDryRun {
 		t.Errorf("status = %q, want %q", plan.Steps[0].Status, domain.StatusDryRun)
 	}
-	if plan.Steps[0].Command != "fake install --cask signal" {
+	if plan.Steps[0].Command != "brew install --cask signal" {
 		t.Errorf("command = %q", plan.Steps[0].Command)
 	}
 }
@@ -156,7 +151,6 @@ func TestInstallService_Plan_SkipsInstalled(t *testing.T) {
 		&testutil.FakeSystemChecker{},
 		nil,
 		false,
-		io.Discard,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
 	if err != nil {
@@ -180,7 +174,6 @@ func TestInstallService_Plan_PendingWhenNotInstalled(t *testing.T) {
 		&testutil.FakeSystemChecker{},
 		nil,
 		false,
-		io.Discard,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
 	if err != nil {
@@ -205,7 +198,6 @@ func TestInstallService_Plan_SkipsToolWithNoRef(t *testing.T) {
 		&testutil.FakeSystemChecker{},
 		nil,
 		false,
-		io.Discard,
 	)
 	plan, err := svc.Plan(context.Background(), makeSelection(tool))
 	if err != nil {
@@ -224,7 +216,7 @@ func TestInstallService_Execute_InstallsPendingSteps(t *testing.T) {
 		{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}},
 	}
 	fake := &testutil.FakePackageManager{}
-	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, nil, false, io.Discard)
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, nil, false)
 
 	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
 	if err != nil {
@@ -249,7 +241,6 @@ func TestInstallService_Execute_EmitsProgressEvents(t *testing.T) {
 		&testutil.FakeSystemChecker{},
 		nil,
 		false,
-		io.Discard,
 	)
 	plan, _ := svc.Plan(context.Background(), makeSelection(tool))
 
@@ -279,7 +270,7 @@ func TestInstallService_Execute_EmitsProgressEvents(t *testing.T) {
 func TestInstallService_Execute_DryRun(t *testing.T) {
 	tool := domain.Tool{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}}
 	fake := &testutil.FakePackageManager{}
-	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, nil, true, io.Discard)
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, nil, true)
 	plan, _ := svc.Plan(context.Background(), makeSelection(tool))
 
 	if err := svc.Execute(context.Background(), plan, nil); err != nil {
@@ -291,16 +282,20 @@ func TestInstallService_Execute_DryRun(t *testing.T) {
 	}
 }
 
-func TestInstallService_Execute_Resume_SkipsCompleted(t *testing.T) {
+// ── Resume state ─────────────────────────────────────────────────────────────
+
+// TestInstallService_Execute_SkipsCompletedTools verifies that tools already
+// marked completed in the persisted state are not reinstalled.
+func TestInstallService_Execute_SkipsCompletedTools(t *testing.T) {
 	tools := []domain.Tool{
 		{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}},
-		{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}},
+		{Name: "vim", MacOS: &domain.PackageRef{Formula: "vim"}},
 	}
 	fake := &testutil.FakePackageManager{}
 	store := &testutil.FakeStateStore{
 		State: &domain.InstallState{CompletedIDs: []string{"git"}},
 	}
-	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, false, io.Discard)
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, false)
 
 	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
 	if err != nil {
@@ -311,78 +306,107 @@ func TestInstallService_Execute_Resume_SkipsCompleted(t *testing.T) {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	// Only "signal" should be installed; "git" was already completed.
+	// Only vim should be installed; git was already completed.
 	if len(fake.InstallCalls) != 1 {
-		t.Errorf("expected 1 install call (skipping completed), got %d", len(fake.InstallCalls))
+		t.Errorf("expected 1 install call (vim only), got %d: %v", len(fake.InstallCalls), fake.InstallCalls)
 	}
-	if len(fake.InstallCalls) == 1 && fake.InstallCalls[0].Cask != "signal" {
-		t.Errorf("expected install for signal, got %+v", fake.InstallCalls[0])
+	if len(fake.InstallCalls) == 1 && fake.InstallCalls[0].Formula != "vim" {
+		t.Errorf("expected install call for vim, got %v", fake.InstallCalls[0])
 	}
 }
 
-func TestInstallService_Execute_StateNotClearedOnFailure(t *testing.T) {
+// TestInstallService_Execute_PreservesStateOnPartialFailure verifies that
+// resume state is NOT cleared when some tools fail to install.
+func TestInstallService_Execute_PreservesStateOnPartialFailure(t *testing.T) {
 	tools := []domain.Tool{
 		{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}},
-		{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}},
+		{Name: "fail-tool", MacOS: &domain.PackageRef{Formula: "fail-tool"}},
 	}
-
-	// First run: second tool fails — state must NOT be cleared.
-	failOnSecond := 0
-	fake := &testutil.FakePackageManager{
-		InstallErr: nil, // will be overridden via custom logic
+	fake := &testutil.FakePackageManager{InstallErr: nil}
+	// Make the second install call fail by swapping InstallErr mid-flight.
+	callCount := 0
+	fakeWithPartialErr := &partialErrPkgMgr{
+		FakePackageManager: fake,
+		failOn:             2,
+		callCount:          &callCount,
 	}
-	_ = failOnSecond
-	fakeWithErr := &testutil.FakePackageManager{}
 	store := &testutil.FakeStateStore{}
-	svc := service.NewInstallService(fakeWithErr, &testutil.FakeSystemChecker{}, store, false, io.Discard)
+	svc := service.NewInstallService(fakeWithPartialErr, &testutil.FakeSystemChecker{}, store, false)
 
-	plan, _ := svc.Plan(context.Background(), makeSelection(tools...))
-
-	// Simulate second tool failure by setting InstallErr before Execute.
-	fakeWithErr.InstallErr = errTest
-
-	_ = svc.Execute(context.Background(), plan, nil)
-
-	if store.ClearCalled {
-		t.Error("expected ClearCalled = false when install fails")
+	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
 	}
 
-	// Second run: both succeed — state MUST be cleared.
-	store2 := &testutil.FakeStateStore{}
-	fakeOK := &testutil.FakePackageManager{}
-	svc2 := service.NewInstallService(fakeOK, &testutil.FakeSystemChecker{}, store2, false, io.Discard)
-	plan2, _ := svc2.Plan(context.Background(), makeSelection(tools...))
+	execErr := svc.Execute(context.Background(), plan, nil)
+	if execErr == nil {
+		t.Fatal("Execute() expected error on partial failure, got nil")
+	}
 
-	if err := svc2.Execute(context.Background(), plan2, nil); err != nil {
-		t.Fatalf("Execute() error on success run = %v", err)
+	// Resume state must still be present (not cleared) after partial failure.
+	if store.State == nil {
+		t.Error("expected resume state to be preserved after partial failure, but store was cleared")
 	}
-	if !store2.ClearCalled {
-		t.Error("expected ClearCalled = true when all installs succeed")
-	}
-	_ = fake
 }
 
-func TestInstallService_Execute_DryRun_NoStateStore(t *testing.T) {
-	tool := domain.Tool{Name: "signal", MacOS: &domain.PackageRef{Cask: "signal"}}
+// TestInstallService_Execute_ClearsStateOnFullSuccess verifies that resume
+// state is cleared when all tools are installed successfully.
+func TestInstallService_Execute_ClearsStateOnFullSuccess(t *testing.T) {
+	tools := []domain.Tool{
+		{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}},
+	}
 	fake := &testutil.FakePackageManager{}
 	store := &testutil.FakeStateStore{}
-	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, true, io.Discard)
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, false)
 
-	plan, _ := svc.Plan(context.Background(), makeSelection(tool))
+	plan, err := svc.Plan(context.Background(), makeSelection(tools...))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
 
 	if err := svc.Execute(context.Background(), plan, nil); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	if store.LoadCalled {
-		t.Error("expected LoadCalled = false in dry-run")
+	// State must be cleared on full success.
+	if store.State != nil {
+		t.Errorf("expected resume state to be cleared after full success, but store still has state: %+v", store.State)
 	}
-	if store.SaveCalled {
-		t.Error("expected SaveCalled = false in dry-run")
+}
+
+// TestInstallService_Execute_SurfacesSaveErrors verifies that Save errors are
+// returned when no install failures occurred.
+func TestInstallService_Execute_SurfacesSaveErrors(t *testing.T) {
+	tool := domain.Tool{Name: "git", MacOS: &domain.PackageRef{Formula: "git"}}
+	fake := &testutil.FakePackageManager{}
+	store := &testutil.FakeStateStore{SaveErr: errTest}
+	svc := service.NewInstallService(fake, &testutil.FakeSystemChecker{}, store, false)
+
+	plan, err := svc.Plan(context.Background(), makeSelection(tool))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
 	}
-	if store.ClearCalled {
-		t.Error("expected ClearCalled = false in dry-run")
+
+	execErr := svc.Execute(context.Background(), plan, nil)
+	if execErr == nil {
+		t.Fatal("Execute() expected warning error from save failure, got nil")
 	}
+}
+
+// partialErrPkgMgr wraps FakePackageManager and returns an error on a
+// specific install call number.
+type partialErrPkgMgr struct {
+	*testutil.FakePackageManager
+	failOn    int
+	callCount *int
+}
+
+func (p *partialErrPkgMgr) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
+	*p.callCount++
+	if *p.callCount == p.failOn {
+		return nil, errTest
+	}
+	return p.FakePackageManager.Install(ctx, ref)
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

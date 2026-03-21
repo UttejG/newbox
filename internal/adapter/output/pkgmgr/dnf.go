@@ -21,24 +21,9 @@ func NewDnf(runner port.CommandRunner) *DnfManager {
 
 func (d *DnfManager) Name() string { return "dnf" }
 
-func (d *DnfManager) CanHandle(ref domain.PackageRef) bool { return ref.Dnf != "" }
-
-func (d *DnfManager) IsAvailable(ctx context.Context) error {
+func (d *DnfManager) IsAvailable(ctx context.Context) bool {
 	res, err := d.runner.Run(ctx, "dnf", []string{"--version"})
-	if err != nil {
-		return fmt.Errorf("dnf: %w", err)
-	}
-	if res.ExitCode != 0 {
-		return fmt.Errorf("dnf: exited with code %d", res.ExitCode)
-	}
-	return nil
-}
-
-func (d *DnfManager) BuildCommand(ref domain.PackageRef) string {
-	if ref.Dnf == "" {
-		return ""
-	}
-	return "dnf install -y " + ref.Dnf
+	return err == nil && res.ExitCode == 0
 }
 
 func (d *DnfManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {
@@ -46,17 +31,23 @@ func (d *DnfManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 		return false, nil
 	}
 	res, err := d.runner.Run(ctx, "dnf", []string{"list", "installed", ref.Dnf})
-	if res != nil && res.DryRun {
-		return false, nil
-	}
-	if res != nil && res.ExitCode != 0 {
-		// dnf list exits non-zero when the package is not installed — not an error.
-		return false, nil
-	}
 	if err != nil {
-		return false, fmt.Errorf("checking %s: %w", ref.Dnf, err)
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
+	}
+	if res.DryRun {
+		return false, nil
 	}
 	return strings.Contains(res.Stdout, ref.Dnf), nil
+}
+
+func (d *DnfManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Dnf == "" {
+		return ""
+	}
+	return "dnf install -y " + ref.Dnf
 }
 
 func (d *DnfManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {

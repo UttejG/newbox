@@ -3,9 +3,8 @@ package screens
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
 )
@@ -43,35 +42,33 @@ func (m ToolsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		currentCat := m.categories[m.catIndex]
-		switch {
-		case key.Matches(msg, keys.Checklist.Up):
+		switch msg.String() {
+		case "up", "k":
 			if m.cursors[m.catIndex] > 0 {
 				m.cursors[m.catIndex]--
 			}
-		case key.Matches(msg, keys.Checklist.Down):
+		case "down", "j":
 			if m.cursors[m.catIndex] < len(currentCat.Tools)-1 {
 				m.cursors[m.catIndex]++
 			}
-		case key.Matches(msg, keys.Checklist.Toggle):
+		case " ":
 			idx := m.cursors[m.catIndex]
-			if len(m.checked[m.catIndex]) > 0 {
-				m.checked[m.catIndex][idx] = !m.checked[m.catIndex][idx]
-			}
-		case key.Matches(msg, keys.Checklist.Next):
+			m.checked[m.catIndex][idx] = !m.checked[m.catIndex][idx]
+		case "tab", "enter":
 			if m.catIndex < len(m.categories)-1 {
 				m.catIndex++
 			} else {
 				return m, func() tea.Msg { return ToolsDone{ByCategory: m.selectedByCategory()} }
 			}
-		case key.Matches(msg, keys.Checklist.Prev):
+		case "shift+tab":
 			if m.catIndex > 0 {
 				m.catIndex--
 			} else {
 				return m, func() tea.Msg { return ToolsBack{} }
 			}
-		case key.Matches(msg, keys.Checklist.Back):
+		case "esc":
 			return m, func() tea.Msg { return ToolsBack{} }
-		case key.Matches(msg, keys.Checklist.Quit):
+		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 	}
@@ -84,7 +81,7 @@ func (m ToolsModel) View() string {
 	}
 
 	cat := m.categories[m.catIndex]
-	progress := styles.ItemCountStyle.Render(
+	progress := lipgloss.NewStyle().Foreground(styles.Muted).Render(
 		fmt.Sprintf("Category %d of %d", m.catIndex+1, len(m.categories)),
 	)
 	title := styles.TitleStyle.Render(cat.Name)
@@ -95,6 +92,7 @@ func (m ToolsModel) View() string {
 	for i, tool := range cat.Tools {
 		cursor := "  "
 		nameStyle := styles.ItemNameStyle
+		descStyle := styles.ItemDescStyle
 
 		if i == m.cursors[m.catIndex] {
 			cursor = styles.SelectedStyle.Render("▸ ")
@@ -114,7 +112,7 @@ func (m ToolsModel) View() string {
 		}
 
 		items += cursor + checkbox + nameStyle.Render(tool.Name) + dotfilesMark + "\n"
-		items += "      " + styles.ItemDescStyle.Render(tool.Description) + "\n"
+		items += "      " + descStyle.Render(tool.Description) + "\n"
 	}
 
 	help := styles.HelpStyle.Render("↑/↓ navigate  •  Space toggle  •  Tab/Enter next category  •  Shift+Tab prev  •  Esc back")

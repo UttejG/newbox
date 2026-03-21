@@ -12,11 +12,9 @@ import (
 
 // FlatpakManager implements PackageManager for Flatpak (cross-distro Linux fallback).
 type FlatpakManager struct {
-	runner port.CommandRunner
-
-	cacheOnce    sync.Once
-	installedIDs map[string]struct{}
-	cacheErr     error
+	runner       port.CommandRunner
+	loadOnce     sync.Once
+	installedRaw string // cached stdout from `flatpak list --app`
 }
 
 // NewFlatpak creates a FlatpakManager backed by the given CommandRunner.
@@ -26,17 +24,23 @@ func NewFlatpak(runner port.CommandRunner) *FlatpakManager {
 
 func (f *FlatpakManager) Name() string { return "flatpak" }
 
-func (f *FlatpakManager) CanHandle(ref domain.PackageRef) bool { return ref.Flatpak != "" }
-
-func (f *FlatpakManager) IsAvailable(ctx context.Context) error {
+func (f *FlatpakManager) IsAvailable(ctx context.Context) bool {
 	res, err := f.runner.Run(ctx, "flatpak", []string{"--version"})
-	if err != nil {
-		return fmt.Errorf("flatpak: %w", err)
+	return err == nil && res.ExitCode == 0
+}
+
+func (f *FlatpakManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {
+	if ref.Flatpak == "" {
+		return false, nil
 	}
-	if res.ExitCode != 0 {
-		return fmt.Errorf("flatpak: exited with code %d", res.ExitCode)
-	}
-	return nil
+	f.loadOnce.Do(func() {
+		res, err := f.runner.Run(ctx, "flatpak", []string{"list", "--app"})
+		if err != nil || res.DryRun {
+			return
+		}
+		f.installedRaw = res.Stdout
+	})
+	return strings.Contains(f.installedRaw, ref.Flatpak), nil
 }
 
 func (f *FlatpakManager) BuildCommand(ref domain.PackageRef) string {
@@ -44,43 +48,6 @@ func (f *FlatpakManager) BuildCommand(ref domain.PackageRef) string {
 		return ""
 	}
 	return "flatpak install -y flathub " + ref.Flatpak
-}
-
-// loadCache fetches the list of installed Flatpak apps once and caches it.
-func (f *FlatpakManager) loadCache(ctx context.Context) {
-	f.cacheOnce.Do(func() {
-		f.installedIDs = make(map[string]struct{})
-		res, err := f.runner.Run(ctx, "flatpak", []string{"list", "--app", "--columns=application"})
-		if err != nil {
-			f.cacheErr = fmt.Errorf("flatpak list: %w", err)
-			return
-		}
-		if res.DryRun {
-			return
-		}
-		if res.ExitCode != 0 {
-			f.cacheErr = fmt.Errorf("flatpak list: exited with code %d", res.ExitCode)
-			return
-		}
-		for _, line := range strings.Split(res.Stdout, "\n") {
-			id := strings.TrimSpace(line)
-			if id != "" {
-				f.installedIDs[id] = struct{}{}
-			}
-		}
-	})
-}
-
-func (f *FlatpakManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {
-	if ref.Flatpak == "" {
-		return false, nil
-	}
-	f.loadCache(ctx)
-	if f.cacheErr != nil {
-		return false, f.cacheErr
-	}
-	_, found := f.installedIDs[ref.Flatpak]
-	return found, nil
 }
 
 func (f *FlatpakManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {

@@ -13,15 +13,15 @@ import (
 
 func TestBrew_Integration_IsAvailable(t *testing.T) {
 	brew := pkgmgr.NewBrew(&runner.ExecRunner{})
-	if err := brew.IsAvailable(context.Background()); err != nil {
-		t.Skip("brew not available on this machine:", err)
+	if !brew.IsAvailable(context.Background()) {
+		t.Skip("brew not available on this machine")
 	}
 }
 
 func TestBrew_Integration_IsInstalled_Git(t *testing.T) {
 	brew := pkgmgr.NewBrew(&runner.ExecRunner{})
-	if err := brew.IsAvailable(context.Background()); err != nil {
-		t.Skip("brew not available:", err)
+	if !brew.IsAvailable(context.Background()) {
+		t.Skip("brew not available")
 	}
 	installed, err := brew.IsInstalled(context.Background(), domain.PackageRef{Formula: "git"})
 	if err != nil {

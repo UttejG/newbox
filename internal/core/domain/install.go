@@ -62,8 +62,8 @@ type ProgressEvent struct {
 
 // InstallState persists between runs for resume support.
 type InstallState struct {
-	CompletedIDs []string
-	FailedIDs    []string
+	CompletedIDs []string // tool names already installed
+	FailedIDs    []string // tool names that failed
 	StartedAt    time.Time
 	UpdatedAt    time.Time
 }

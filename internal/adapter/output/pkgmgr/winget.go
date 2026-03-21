@@ -21,19 +21,9 @@ func NewWinget(runner port.CommandRunner) *WingetManager {
 
 func (w *WingetManager) Name() string { return "winget" }
 
-func (w *WingetManager) CanHandle(ref domain.PackageRef) bool {
-	return ref.Winget != ""
-}
-
-func (w *WingetManager) IsAvailable(ctx context.Context) error {
+func (w *WingetManager) IsAvailable(ctx context.Context) bool {
 	res, err := w.runner.Run(ctx, "winget", []string{"--version"})
-	if err != nil {
-		return fmt.Errorf("winget: %w", err)
-	}
-	if res.ExitCode != 0 {
-		return fmt.Errorf("winget: exited with code %d", res.ExitCode)
-	}
-	return nil
+	return err == nil && res != nil && res.ExitCode == 0
 }
 
 func (w *WingetManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {
@@ -41,18 +31,20 @@ func (w *WingetManager) IsInstalled(ctx context.Context, ref domain.PackageRef) 
 		return false, nil
 	}
 	res, err := w.runner.Run(ctx, "winget", []string{"list", "--id", ref.Winget, "--exact"})
-	if res != nil && res.DryRun {
-		return false, nil
-	}
-	if res != nil && res.ExitCode != 0 {
-		// winget list exits non-zero when the package is not installed — not an error.
-		return false, nil
-	}
 	if err != nil {
-		// Command failed to execute entirely (winget not on PATH, context cancelled, etc.).
-		return false, fmt.Errorf("checking %s: %w", ref.Winget, err)
+		if res != nil && res.ExitCode != 0 {
+			return false, nil // non-zero exit means package not found
+		}
+		return false, err // propagate genuine errors (binary missing, ctx cancelled, etc.)
 	}
-	return strings.Contains(res.Stdout, ref.Winget), nil
+	return res.ExitCode == 0 && strings.Contains(res.Stdout, ref.Winget), nil
+}
+
+func (w *WingetManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Winget == "" {
+		return ""
+	}
+	return "winget install --id " + ref.Winget + " --exact --silent"
 }
 
 func (w *WingetManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
@@ -64,16 +56,6 @@ func (w *WingetManager) Install(ctx context.Context, ref domain.PackageRef) (*po
 		"--id", ref.Winget,
 		"--exact",
 		"--silent",
-		"--disable-interactivity",
 		"--accept-package-agreements",
-		"--accept-source-agreements",
 	})
-}
-
-// BuildCommand returns the winget install command string for plan display.
-func (w *WingetManager) BuildCommand(ref domain.PackageRef) string {
-	if ref.Winget == "" {
-		return ""
-	}
-	return fmt.Sprintf("winget install --id %s --exact --silent --disable-interactivity --accept-package-agreements --accept-source-agreements", ref.Winget)
 }

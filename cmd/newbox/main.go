@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -52,10 +53,15 @@ func main() {
 
 	dryRun := flag.Bool("dry-run", false, "Simulate installation without executing commands")
 	summary := flag.Bool("summary", false, "Print a text summary of the install plan (requires --dry-run)")
+	jsonOutput := flag.Bool("json", false, "Output as JSON (use with --dry-run)")
 	flag.Parse()
 
 	if *summary && !*dryRun {
 		fmt.Fprintln(os.Stderr, "Error: --summary requires --dry-run")
+		os.Exit(2)
+	}
+	if *jsonOutput && !*dryRun {
+		fmt.Fprintln(os.Stderr, "Error: --json requires --dry-run")
 		os.Exit(2)
 	}
 
@@ -74,7 +80,7 @@ func main() {
 		cmdRunner = &runner.ExecRunner{}
 	}
 
-	// Wire state store for resume support.
+	// Wire state store for resume support (only when not doing a dry-run).
 	var store port.StateStore
 	if !*dryRun {
 		if fs, err := statestore.NewFileStore(); err != nil {
@@ -113,12 +119,12 @@ func main() {
 	switch platform.OS {
 	case domain.OSMacOS, domain.OSWindows, domain.OSLinux:
 		mgr := pkgmgr.NewForPlatform(platform, cmdRunner)
-		installSvc = service.NewInstallService(mgr, syschecker, store, *dryRun, os.Stderr)
+		installSvc = service.NewInstallService(mgr, syschecker, store, *dryRun)
 	}
 
 	// Non-interactive summary mode.
-	if *dryRun && *summary {
-		runSummary(platform, catalogSvc, installSvc)
+	if *dryRun && (*summary || *jsonOutput) {
+		runSummary(platform, catalogSvc, installSvc, *jsonOutput)
 		return
 	}
 
@@ -148,6 +154,96 @@ func main() {
 			}
 		}
 	}
+}
+
+// runSummary prints a dry-run install plan for all tools on the current platform.
+func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, installSvc port.InstallService, asJSON bool) {
+	if installSvc == nil {
+		fmt.Fprintf(os.Stderr, "Error: installation is not supported on %s\n", platform.OS)
+		os.Exit(1)
+	}
+	cats, err := catalogSvc.GetCategories(platform.OS)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading catalog: %v\n", err)
+		os.Exit(1)
+	}
+
+	byCategory := make(map[string][]domain.Tool, len(cats))
+	for _, cat := range cats {
+		byCategory[cat.ID] = cat.Tools
+	}
+	selection := &domain.UserSelection{
+		Platform:        platform,
+		ToolsByCategory: byCategory,
+	}
+
+	plan, err := installSvc.Plan(context.Background(), selection)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error building plan: %v\n", err)
+		os.Exit(1)
+	}
+
+	if asJSON {
+		type jsonStep struct {
+			Tool    string `json:"tool"`
+			Command string `json:"command"`
+			Status  string `json:"status"`
+		}
+		type jsonSummary struct {
+			WouldInstall     int `json:"would_install"`
+			AlreadyInstalled int `json:"already_installed"`
+		}
+		type jsonOut struct {
+			Platform string      `json:"platform"`
+			Profile  string      `json:"profile"`
+			Steps    []jsonStep  `json:"steps"`
+			Summary  jsonSummary `json:"summary"`
+		}
+
+		steps := make([]jsonStep, 0, len(plan.Steps))
+		for _, step := range plan.Steps {
+			status := "dry_run"
+			if step.Status == domain.StatusSkipped {
+				status = "already_installed"
+			}
+			steps = append(steps, jsonStep{
+				Tool:    step.Tool.Name,
+				Command: step.Command,
+				Status:  status,
+			})
+		}
+
+		out := jsonOut{
+			Platform: platform.Summary(),
+			Profile:  "all",
+			Steps:    steps,
+			Summary: jsonSummary{
+				WouldInstall:     len(plan.PendingSteps()),
+				AlreadyInstalled: len(plan.SkippedSteps()),
+			},
+		}
+
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(out); err != nil {
+			fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	fmt.Printf("Dry-run install plan for %s\n\n", platform.Summary())
+	for _, step := range plan.Steps {
+		switch step.Status {
+		case domain.StatusDryRun:
+			fmt.Printf("  [ dry-run ] %s\n", step.Command)
+		case domain.StatusSkipped:
+			fmt.Printf("  [ skip    ] %s  (already installed)\n", step.Command)
+		}
+	}
+	pending := plan.PendingSteps()
+	skipped := plan.SkippedSteps()
+	fmt.Printf("\n  Total: %d would install, %d would skip\n", len(pending), len(skipped))
 }
 
 func runList(platform *domain.Platform, args []string) error {
@@ -185,45 +281,4 @@ func runList(platform *domain.Platform, args []string) error {
 		fmt.Println()
 	}
 	return nil
-}
-
-// runSummary prints a dry-run install plan for all tools on the current platform.
-func runSummary(platform *domain.Platform, catalogSvc port.CatalogService, installSvc port.InstallService) {
-	if installSvc == nil {
-		fmt.Fprintf(os.Stderr, "Error: installation is not supported on %s\n", platform.OS)
-		os.Exit(1)
-	}
-	cats, err := catalogSvc.GetCategories(platform.OS)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading catalog: %v\n", err)
-		os.Exit(1)
-	}
-
-	byCategory := make(map[string][]domain.Tool, len(cats))
-	for _, cat := range cats {
-		byCategory[cat.ID] = cat.Tools
-	}
-	selection := &domain.UserSelection{
-		Platform:        platform,
-		ToolsByCategory: byCategory,
-	}
-
-	plan, err := installSvc.Plan(context.Background(), selection)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error building plan: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Dry-run install plan for %s\n\n", platform.Summary())
-	for _, step := range plan.Steps {
-		switch step.Status {
-		case domain.StatusDryRun:
-			fmt.Printf("  [ dry-run ] %s\n", step.Command)
-		case domain.StatusSkipped:
-			fmt.Printf("  [ skip    ] %s  (already installed)\n", step.Command)
-		}
-	}
-	pending := plan.PendingSteps()
-	skipped := plan.SkippedSteps()
-	fmt.Printf("\n  Total: %d would install, %d would skip\n", len(pending), len(skipped))
 }

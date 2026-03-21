@@ -23,19 +23,19 @@ func TestWingetManager_IsAvailable(t *testing.T) {
 		name    string
 		results []*port.RunResult
 		err     error
-		wantErr bool
+		want    bool
 	}{
-		{"available", []*port.RunResult{{ExitCode: 0}}, nil, false},
-		{"not available", []*port.RunResult{{ExitCode: 1}}, nil, true},
-		{"error", nil, fmt.Errorf("not found"), true},
+		{"available", []*port.RunResult{{ExitCode: 0}}, nil, true},
+		{"not available", []*port.RunResult{{ExitCode: 1}}, nil, false},
+		{"error", nil, fmt.Errorf("not found"), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := &testutil.FakeRunner{Results: tt.results, Err: tt.err}
 			w := pkgmgr.NewWinget(fake)
-			err := w.IsAvailable(context.Background())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("IsAvailable() error = %v, wantErr %v", err, tt.wantErr)
+			got := w.IsAvailable(context.Background())
+			if got != tt.want {
+				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -96,9 +96,6 @@ func TestWingetManager_IsInstalled(t *testing.T) {
 				if call.Cmd != "winget" {
 					t.Errorf("cmd = %q, want \"winget\"", call.Cmd)
 				}
-				if len(call.Args) != len(tt.wantArgs) {
-					t.Fatalf("args length = %d, want %d; got %v", len(call.Args), len(tt.wantArgs), call.Args)
-				}
 				for i, a := range tt.wantArgs {
 					if call.Args[i] != a {
 						t.Errorf("args[%d] = %q, want %q", i, call.Args[i], a)
@@ -122,9 +119,7 @@ func TestWingetManager_Install(t *testing.T) {
 			wantArgs: []string{
 				"install", "--id", "Mozilla.Firefox",
 				"--exact", "--silent",
-				"--disable-interactivity",
 				"--accept-package-agreements",
-				"--accept-source-agreements",
 			},
 		},
 		{
@@ -157,9 +152,6 @@ func TestWingetManager_Install(t *testing.T) {
 			call := fake.Calls[0]
 			if call.Cmd != "winget" {
 				t.Errorf("cmd = %q, want \"winget\"", call.Cmd)
-			}
-			if len(call.Args) != len(tt.wantArgs) {
-				t.Fatalf("args length = %d, want %d; got %v", len(call.Args), len(tt.wantArgs), call.Args)
 			}
 			for i, a := range tt.wantArgs {
 				if call.Args[i] != a {

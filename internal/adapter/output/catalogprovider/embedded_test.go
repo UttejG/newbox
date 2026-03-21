@@ -59,3 +59,78 @@ func TestEmbeddedProvider_LoadProfiles(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalog_AllToolsHaveAtLeastOneOS(t *testing.T) {
+	p := &catalogprovider.EmbeddedProvider{}
+	cats, err := p.LoadCategories()
+	if err != nil {
+		t.Fatalf("LoadCategories() error: %v", err)
+	}
+	for _, cat := range cats {
+		for _, tool := range cat.Tools {
+			hasAny := tool.MacOS != nil || tool.Windows != nil || tool.Linux != nil
+			if !hasAny {
+				t.Errorf("tool %q in category %q has no OS mappings", tool.Name, cat.ID)
+			}
+		}
+	}
+}
+
+func TestCatalog_NoDuplicateToolNames(t *testing.T) {
+	p := &catalogprovider.EmbeddedProvider{}
+	cats, err := p.LoadCategories()
+	if err != nil {
+		t.Fatalf("LoadCategories() error: %v", err)
+	}
+	// Track tool name for global uniqueness across all categories
+	seen := make(map[string]string)
+	for _, cat := range cats {
+		for _, tool := range cat.Tools {
+			if prevCat, exists := seen[tool.Name]; exists {
+				t.Errorf("duplicate tool %q: first seen in category %q, also in %q", tool.Name, prevCat, cat.ID)
+			}
+			seen[tool.Name] = cat.ID
+		}
+	}
+}
+
+func TestCatalog_AllCategoryIDsUnique(t *testing.T) {
+	p := &catalogprovider.EmbeddedProvider{}
+	cats, err := p.LoadCategories()
+	if err != nil {
+		t.Fatalf("LoadCategories() error: %v", err)
+	}
+	seen := make(map[string]bool)
+	for _, cat := range cats {
+		if seen[cat.ID] {
+			t.Errorf("duplicate category ID %q", cat.ID)
+		}
+		seen[cat.ID] = true
+	}
+}
+
+func TestCatalog_CategoryCount(t *testing.T) {
+	p := &catalogprovider.EmbeddedProvider{}
+	cats, err := p.LoadCategories()
+	if err != nil {
+		t.Fatalf("LoadCategories() error: %v", err)
+	}
+	if len(cats) < 20 {
+		t.Errorf("expected at least 20 categories, got %d", len(cats))
+	}
+}
+
+func TestCatalog_ToolCount(t *testing.T) {
+	p := &catalogprovider.EmbeddedProvider{}
+	cats, err := p.LoadCategories()
+	if err != nil {
+		t.Fatalf("LoadCategories() error: %v", err)
+	}
+	total := 0
+	for _, cat := range cats {
+		total += len(cat.Tools)
+	}
+	if total < 80 {
+		t.Errorf("expected at least 80 tools, got %d", total)
+	}
+}
