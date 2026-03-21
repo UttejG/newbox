@@ -10,11 +10,11 @@ import (
 
 func TestDryRunRunner(t *testing.T) {
 	tests := []struct {
-		name     string
-		cmd      string
-		args     []string
-		wantLog  string
-		wantLen  int
+		name    string
+		cmd     string
+		args    []string
+		wantLog string
+		wantLen int
 	}{
 		{
 			name:    "brew install formula",
@@ -69,7 +69,10 @@ func TestDryRunRunner_AccumulatesLog(t *testing.T) {
 	r := &runner.DryRunRunner{}
 	ctx := context.Background()
 
-	cmds := []struct{ cmd string; args []string }{
+	cmds := []struct {
+		cmd  string
+		args []string
+	}{
 		{"brew", []string{"install", "git"}},
 		{"brew", []string{"install", "--cask", "signal"}},
 		{"brew", []string{"--version"}},

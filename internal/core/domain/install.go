@@ -9,9 +9,9 @@ const (
 	StatusPending    InstallStatus = "pending"
 	StatusInstalling InstallStatus = "installing"
 	StatusDone       InstallStatus = "done"
-	StatusSkipped    InstallStatus = "skipped"  // already installed
+	StatusSkipped    InstallStatus = "skipped" // already installed
 	StatusFailed     InstallStatus = "failed"
-	StatusDryRun     InstallStatus = "dry_run"  // would install (dry-run mode)
+	StatusDryRun     InstallStatus = "dry_run" // would install (dry-run mode)
 )
 
 // ExecutionStep represents one installation action.

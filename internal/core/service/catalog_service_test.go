@@ -25,9 +25,9 @@ func TestCatalogService_GetCategories_FiltersForOS(t *testing.T) {
 		wantCount int
 		wantName  string
 	}{
-		{domain.OSMacOS, 3, "messaging"},    // all 3 categories have macOS tools
-		{domain.OSLinux, 3, "messaging"},    // all 3 have Linux tools
-		{domain.OSWindows, 3, "messaging"},  // all 3 have Windows tools (WinOnly in messaging, Firefox in browsers, git+jq in cli)
+		{domain.OSMacOS, 3, "messaging"},   // all 3 categories have macOS tools
+		{domain.OSLinux, 3, "messaging"},   // all 3 have Linux tools
+		{domain.OSWindows, 3, "messaging"}, // all 3 have Windows tools (WinOnly in messaging, Firefox in browsers, git+jq in cli)
 	}
 
 	for _, tt := range tests {

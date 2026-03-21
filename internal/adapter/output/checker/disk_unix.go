@@ -9,6 +9,8 @@ import (
 	"syscall"
 )
 
+// CheckDiskSpace returns an error if available disk space in the home directory
+// is below minGB gigabytes.
 func (c *SystemChecker) CheckDiskSpace(_ context.Context, minGB int) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
