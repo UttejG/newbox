@@ -62,10 +62,10 @@ type ProgressEvent struct {
 
 // InstallState persists between runs for resume support.
 type InstallState struct {
-	CompletedIDs []string  `json:"completed_ids"` // tool names already installed
-	FailedIDs    []string  `json:"failed_ids"`    // tool names that failed
-	StartedAt    time.Time `json:"started_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	CompletedIDs []string // tool names already installed
+	FailedIDs    []string // tool names that failed
+	StartedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func (s *InstallState) IsCompleted(toolID string) bool {

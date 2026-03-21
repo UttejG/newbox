@@ -2,6 +2,8 @@
 package catalogprovider
 
 import (
+	"sync"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/uttejg/newbox/catalog"
@@ -54,58 +56,73 @@ type yamlProfiles struct {
 }
 
 // EmbeddedProvider implements port.CatalogProvider using go:embed YAML files.
-type EmbeddedProvider struct{}
+// Parsed results are cached after the first load.
+type EmbeddedProvider struct {
+	catsOnce sync.Once
+	cats     []domain.Category
+	catsErr  error
 
-// LoadCategories parses tools.yaml and returns all categories.
-func (p *EmbeddedProvider) LoadCategories() ([]domain.Category, error) {
-	var raw yamlCatalog
-	if err := yaml.Unmarshal(catalog.ToolsYAML, &raw); err != nil {
-		return nil, err
-	}
-
-	categories := make([]domain.Category, 0, len(raw.Categories))
-	for _, rc := range raw.Categories {
-		cat := domain.Category{
-			ID:          rc.ID,
-			Name:        rc.Name,
-			Description: rc.Description,
-			Tools:       make([]domain.Tool, 0, len(rc.Tools)),
-		}
-		for _, rt := range rc.Tools {
-			tool := domain.Tool{
-				Name:            rt.Name,
-				Description:     rt.Description,
-				Website:         rt.Website,
-				DotfilesDefault: rt.DotfilesDefault,
-				MacOS:           toPackageRef(rt.MacOS),
-				Windows:         toPackageRef(rt.Windows),
-				Linux:           toPackageRef(rt.Linux),
-			}
-			cat.Tools = append(cat.Tools, tool)
-		}
-		categories = append(categories, cat)
-	}
-	return categories, nil
+	profsOnce sync.Once
+	profs     []domain.Profile
+	profsErr  error
 }
 
-// LoadProfiles parses profiles.yaml and returns all profiles.
-func (p *EmbeddedProvider) LoadProfiles() ([]domain.Profile, error) {
-	var raw yamlProfiles
-	if err := yaml.Unmarshal(catalog.ProfilesYAML, &raw); err != nil {
-		return nil, err
-	}
+// LoadCategories parses tools.yaml and returns all categories (cached after first call).
+func (p *EmbeddedProvider) LoadCategories() ([]domain.Category, error) {
+	p.catsOnce.Do(func() {
+		var raw yamlCatalog
+		if err := yaml.Unmarshal(catalog.ToolsYAML, &raw); err != nil {
+			p.catsErr = err
+			return
+		}
+		categories := make([]domain.Category, 0, len(raw.Categories))
+		for _, rc := range raw.Categories {
+			cat := domain.Category{
+				ID:          rc.ID,
+				Name:        rc.Name,
+				Description: rc.Description,
+				Tools:       make([]domain.Tool, 0, len(rc.Tools)),
+			}
+			for _, rt := range rc.Tools {
+				tool := domain.Tool{
+					Name:            rt.Name,
+					Description:     rt.Description,
+					Website:         rt.Website,
+					DotfilesDefault: rt.DotfilesDefault,
+					MacOS:           toPackageRef(rt.MacOS),
+					Windows:         toPackageRef(rt.Windows),
+					Linux:           toPackageRef(rt.Linux),
+				}
+				cat.Tools = append(cat.Tools, tool)
+			}
+			categories = append(categories, cat)
+		}
+		p.cats = categories
+	})
+	return p.cats, p.catsErr
+}
 
-	profiles := make([]domain.Profile, 0, len(raw.Profiles))
-	for _, rp := range raw.Profiles {
-		profiles = append(profiles, domain.Profile{
-			ID:            rp.ID,
-			Name:          rp.Name,
-			Description:   rp.Description,
-			AllCategories: rp.AllCategories,
-			Categories:    rp.Categories,
-		})
-	}
-	return profiles, nil
+// LoadProfiles parses profiles.yaml and returns all profiles (cached after first call).
+func (p *EmbeddedProvider) LoadProfiles() ([]domain.Profile, error) {
+	p.profsOnce.Do(func() {
+		var raw yamlProfiles
+		if err := yaml.Unmarshal(catalog.ProfilesYAML, &raw); err != nil {
+			p.profsErr = err
+			return
+		}
+		profiles := make([]domain.Profile, 0, len(raw.Profiles))
+		for _, rp := range raw.Profiles {
+			profiles = append(profiles, domain.Profile{
+				ID:            rp.ID,
+				Name:          rp.Name,
+				Description:   rp.Description,
+				AllCategories: rp.AllCategories,
+				Categories:    rp.Categories,
+			})
+		}
+		p.profs = profiles
+	})
+	return p.profs, p.profsErr
 }
 
 func toPackageRef(r *yamlPkgRef) *domain.PackageRef {

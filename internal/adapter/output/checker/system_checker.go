@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/uttejg/newbox/internal/core/port"
 )
@@ -14,6 +15,8 @@ type SystemChecker struct {
 }
 
 func (c *SystemChecker) CheckInternet(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 	client := &http.Client{}
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, "https://github.com", nil)
 	if err != nil {

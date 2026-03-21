@@ -38,6 +38,10 @@ type AppModel struct {
 	installSvc     port.InstallService
 	dryRun         bool
 
+	// ctx/cancel allow in-progress installs to be cancelled (e.g. on Ctrl+C).
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	// Screen models (created lazily)
 	welcome      screens.WelcomeModel
 	profile      screens.ProfileModel
@@ -57,12 +61,15 @@ type AppModel struct {
 
 // NewApp creates the root application model.
 func NewApp(platform *domain.Platform, catalogSvc port.CatalogService, installSvc port.InstallService, dryRun bool) *AppModel {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &AppModel{
 		current:        screenWelcome,
 		platform:       platform,
 		catalogService: catalogSvc,
 		installSvc:     installSvc,
 		dryRun:         dryRun,
+		ctx:            ctx,
+		cancel:         cancel,
 		welcome:        screens.NewWelcome(platform, dryRun),
 	}
 }
@@ -72,8 +79,9 @@ func (m *AppModel) Init() tea.Cmd {
 }
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle global quit
+	// Handle global quit — cancel any in-progress install before exiting.
 	if km, ok := msg.(tea.KeyMsg); ok && (km.String() == "ctrl+c") {
+		m.cancel()
 		return m, tea.Quit
 	}
 
@@ -97,9 +105,10 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ch := make(chan domain.ProgressEvent, 100)
 			m.installModel = screens.NewInstall(result.plan, m.dryRun, ch)
 			m.current = screenInstall
+			ctx := m.ctx
 			go func() {
 				defer close(ch)
-				_ = m.installSvc.Execute(context.Background(), result.plan, ch)
+				_ = m.installSvc.Execute(ctx, result.plan, ch)
 			}()
 			return m, m.installModel.Init()
 		}
@@ -258,8 +267,9 @@ func (m *AppModel) transitionToInstall() (tea.Model, tea.Cmd) {
 	m.current = screenPlanning
 	svc := m.installSvc
 	sel := m.selection
+	ctx := m.ctx
 	return m, func() tea.Msg {
-		plan, err := svc.Plan(context.Background(), sel)
+		plan, err := svc.Plan(ctx, sel)
 		return planResultMsg{plan: plan, err: err}
 	}
 }

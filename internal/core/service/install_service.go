@@ -145,11 +145,14 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 			step.Error = err
 			failedTools = append(failedTools, step.Tool.Name)
 			state.FailedIDs = append(state.FailedIDs, step.Tool.Name)
+			if s.store != nil {
+				_ = s.store.Save(state) // persist failure for resume; non-fatal if it errors
+			}
 		} else {
 			step.Status = domain.StatusDone
 			state.MarkCompleted(step.Tool.Name)
 			if s.store != nil {
-				_ = s.store.Save(state)
+				_ = s.store.Save(state) // persist progress; non-fatal if it errors
 			}
 		}
 

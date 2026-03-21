@@ -48,4 +48,13 @@ var (
 	StatusBarStyle = lipgloss.NewStyle().
 			Foreground(Muted).
 			MarginTop(1)
+
+	// Shared item styles — reused in render loops to avoid per-row allocations.
+	ItemNameStyle    = lipgloss.NewStyle().Foreground(Text)
+	ItemDescStyle    = lipgloss.NewStyle().Foreground(Muted)
+	ItemCountStyle   = lipgloss.NewStyle().Foreground(Muted)
+	CatHeaderStyle   = lipgloss.NewStyle().Foreground(Primary).Bold(true)
+	WarningTextStyle = lipgloss.NewStyle().Foreground(Warning)
+	ProceedStyle     = lipgloss.NewStyle().Foreground(Success).Bold(true)
+	MutedTextStyle   = lipgloss.NewStyle().Foreground(Muted)
 )
