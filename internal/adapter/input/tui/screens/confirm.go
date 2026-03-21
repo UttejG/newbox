@@ -3,8 +3,10 @@ package screens
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
 	"github.com/uttejg/newbox/internal/core/domain"
 )
@@ -26,12 +28,14 @@ func (m ConfirmModel) Init() tea.Cmd { return nil }
 func (m ConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
-			return m, func() tea.Msg { return ConfirmProceed{Selection: m.selection} }
-		case "esc":
+		switch {
+		case key.Matches(msg, keys.List.Select):
+			if m.selection.TotalCount() > 0 {
+				return m, func() tea.Msg { return ConfirmProceed{Selection: m.selection} }
+			}
+		case key.Matches(msg, keys.List.Back):
 			return m, func() tea.Msg { return ConfirmBack{} }
-		case "q", "ctrl+c":
+		case key.Matches(msg, keys.List.Quit):
 			return m, tea.Quit
 		}
 	}

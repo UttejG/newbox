@@ -127,3 +127,13 @@ func (p *Platform) Summary() string {
 
 	return strings.Join(parts, " ")
 }
+
+// FormatInfo returns a single-line description of the detected platform and
+// package manager, suitable for display in a UI or log line.
+func (p *Platform) FormatInfo() string {
+	info := fmt.Sprintf("Detected: %s", p.Summary())
+	if p.PackageManager != PkgMgrNone {
+		return info + fmt.Sprintf(" — Package manager: %s", p.PackageManager)
+	}
+	return info + " — No supported package manager found"
+}

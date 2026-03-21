@@ -21,9 +21,24 @@ func NewApt(runner port.CommandRunner) *AptManager {
 
 func (a *AptManager) Name() string { return "apt" }
 
-func (a *AptManager) IsAvailable(ctx context.Context) bool {
+func (a *AptManager) CanHandle(ref domain.PackageRef) bool { return ref.Apt != "" }
+
+func (a *AptManager) IsAvailable(ctx context.Context) error {
 	res, err := a.runner.Run(ctx, "apt-get", []string{"--version"})
-	return err == nil && res.ExitCode == 0
+	if err != nil {
+		return fmt.Errorf("apt-get: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("apt-get: exited with code %d", res.ExitCode)
+	}
+	return nil
+}
+
+func (a *AptManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Apt == "" {
+		return ""
+	}
+	return "apt-get install -y " + ref.Apt
 }
 
 func (a *AptManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {

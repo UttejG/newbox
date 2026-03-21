@@ -21,9 +21,24 @@ func NewFlatpak(runner port.CommandRunner) *FlatpakManager {
 
 func (f *FlatpakManager) Name() string { return "flatpak" }
 
-func (f *FlatpakManager) IsAvailable(ctx context.Context) bool {
+func (f *FlatpakManager) CanHandle(ref domain.PackageRef) bool { return ref.Flatpak != "" }
+
+func (f *FlatpakManager) IsAvailable(ctx context.Context) error {
 	res, err := f.runner.Run(ctx, "flatpak", []string{"--version"})
-	return err == nil && res.ExitCode == 0
+	if err != nil {
+		return fmt.Errorf("flatpak: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("flatpak: exited with code %d", res.ExitCode)
+	}
+	return nil
+}
+
+func (f *FlatpakManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Flatpak == "" {
+		return ""
+	}
+	return "flatpak install -y flathub " + ref.Flatpak
 }
 
 func (f *FlatpakManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {

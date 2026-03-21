@@ -1,10 +1,11 @@
 package screens
 
 import (
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/uttejg/newbox/internal/adapter/input/tui/keys"
 	"github.com/uttejg/newbox/internal/adapter/input/tui/styles"
-	"github.com/uttejg/newbox/internal/adapter/output/detector"
 	"github.com/uttejg/newbox/internal/core/domain"
 )
 
@@ -24,10 +25,10 @@ func (m WelcomeModel) Init() tea.Cmd { return nil }
 func (m WelcomeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
+		switch {
+		case key.Matches(msg, keys.List.Select):
 			return m, func() tea.Msg { return WelcomeDone{} }
-		case "q", "ctrl+c":
+		case key.Matches(msg, keys.List.Quit):
 			return m, tea.Quit
 		}
 	}
@@ -46,7 +47,7 @@ func (m WelcomeModel) View() string {
 	sub := styles.SubtitleStyle.Render("Cross-platform machine setup — choose what to install")
 
 	platformInfo := lipgloss.NewStyle().Foreground(styles.Primary).Render(
-		"  " + detector.FormatDetectionInfo(m.platform),
+		"  " + m.platform.FormatInfo(),
 	)
 
 	var dryRunBadge string

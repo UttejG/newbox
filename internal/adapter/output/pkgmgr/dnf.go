@@ -21,9 +21,24 @@ func NewDnf(runner port.CommandRunner) *DnfManager {
 
 func (d *DnfManager) Name() string { return "dnf" }
 
-func (d *DnfManager) IsAvailable(ctx context.Context) bool {
+func (d *DnfManager) CanHandle(ref domain.PackageRef) bool { return ref.Dnf != "" }
+
+func (d *DnfManager) IsAvailable(ctx context.Context) error {
 	res, err := d.runner.Run(ctx, "dnf", []string{"--version"})
-	return err == nil && res.ExitCode == 0
+	if err != nil {
+		return fmt.Errorf("dnf: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("dnf: exited with code %d", res.ExitCode)
+	}
+	return nil
+}
+
+func (d *DnfManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Dnf == "" {
+		return ""
+	}
+	return "dnf install -y " + ref.Dnf
 }
 
 func (d *DnfManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {

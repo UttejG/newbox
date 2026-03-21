@@ -20,9 +20,24 @@ func NewPacman(runner port.CommandRunner) *PacmanManager {
 
 func (p *PacmanManager) Name() string { return "pacman" }
 
-func (p *PacmanManager) IsAvailable(ctx context.Context) bool {
+func (p *PacmanManager) CanHandle(ref domain.PackageRef) bool { return ref.Pacman != "" }
+
+func (p *PacmanManager) IsAvailable(ctx context.Context) error {
 	res, err := p.runner.Run(ctx, "pacman", []string{"--version"})
-	return err == nil && res.ExitCode == 0
+	if err != nil {
+		return fmt.Errorf("pacman: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("pacman: exited with code %d", res.ExitCode)
+	}
+	return nil
+}
+
+func (p *PacmanManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Pacman == "" {
+		return ""
+	}
+	return "pacman -S --noconfirm " + ref.Pacman
 }
 
 func (p *PacmanManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {

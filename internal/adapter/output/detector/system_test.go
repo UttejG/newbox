@@ -2,6 +2,7 @@ package detector_test
 
 import (
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/uttejg/newbox/internal/adapter/output/detector"
@@ -92,22 +93,9 @@ func TestFormatDetectionInfo(t *testing.T) {
 			if info == "" {
 				t.Error("FormatDetectionInfo returned empty string")
 			}
-			if !contains(info, tt.wantSub) {
+			if !strings.Contains(info, tt.wantSub) {
 				t.Errorf("FormatDetectionInfo() = %q, want substring %q", info, tt.wantSub)
 			}
 		})
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

@@ -22,7 +22,11 @@ func (d *SystemDetector) Detect() (*domain.Platform, error) {
 	}
 
 	if p.OS == domain.OSLinux {
-		p.Distro = detectDistro()
+		distro, err := detectDistro()
+		if err != nil {
+			return nil, err
+		}
+		p.Distro = distro
 	}
 
 	p.PackageManager = detectPackageManager(p.OS, p.Distro)
@@ -54,10 +58,10 @@ func detectArch() domain.Arch {
 	}
 }
 
-func detectDistro() domain.Distro {
+func detectDistro() (domain.Distro, error) {
 	f, err := os.Open("/etc/os-release")
 	if err != nil {
-		return domain.DistroUnknown
+		return domain.DistroUnknown, nil
 	}
 	defer f.Close()
 
@@ -69,20 +73,24 @@ func detectDistro() domain.Distro {
 			id = strings.Trim(id, "\"")
 			switch strings.ToLower(id) {
 			case "debian":
-				return domain.DistroDebian
+				return domain.DistroDebian, nil
 			case "ubuntu":
-				return domain.DistroUbuntu
+				return domain.DistroUbuntu, nil
 			case "fedora":
-				return domain.DistroFedora
+				return domain.DistroFedora, nil
 			case "arch":
-				return domain.DistroArch
+				return domain.DistroArch, nil
 			default:
-				return domain.DistroUnknown
+				return domain.DistroUnknown, nil
 			}
 		}
 	}
 
-	return domain.DistroUnknown
+	if err := scanner.Err(); err != nil {
+		return domain.DistroUnknown, fmt.Errorf("reading /etc/os-release: %w", err)
+	}
+
+	return domain.DistroUnknown, nil
 }
 
 func detectPackageManager(os domain.OS, distro domain.Distro) domain.PackageManagerType {
@@ -105,23 +113,26 @@ func detectPackageManager(os domain.OS, distro domain.Distro) domain.PackageMana
 }
 
 func detectLinuxPackageManager(distro domain.Distro) domain.PackageManagerType {
-	// Try distro-specific first, then fall back to detection
+	// For known distros, only check the canonical package manager.
 	switch distro {
 	case domain.DistroDebian, domain.DistroUbuntu:
 		if commandExists("apt") {
 			return domain.PkgMgrApt
 		}
+		return domain.PkgMgrNone
 	case domain.DistroFedora:
 		if commandExists("dnf") {
 			return domain.PkgMgrDnf
 		}
+		return domain.PkgMgrNone
 	case domain.DistroArch:
 		if commandExists("pacman") {
 			return domain.PkgMgrPacman
 		}
+		return domain.PkgMgrNone
 	}
 
-	// Fall back: try each in order of popularity
+	// DistroUnknown: probe in order of popularity.
 	if commandExists("apt") {
 		return domain.PkgMgrApt
 	}
