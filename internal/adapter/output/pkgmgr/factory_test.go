@@ -39,6 +39,11 @@ func TestNewForPlatform(t *testing.T) {
 			platform: &domain.Platform{OS: domain.OSLinux, PackageManager: domain.PkgMgrNone},
 			wantName: "composite",
 		},
+		{
+			name:     "Windows returns winget",
+			platform: &domain.Platform{OS: domain.OSWindows, PackageManager: domain.PkgMgrWinget},
+			wantName: "winget",
+		},
 	}
 
 	for _, tt := range tests {

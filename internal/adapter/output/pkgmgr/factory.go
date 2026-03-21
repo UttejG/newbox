@@ -15,7 +15,8 @@ func NewForPlatform(platform *domain.Platform, runner port.CommandRunner) port.P
 	switch platform.OS {
 	case domain.OSMacOS:
 		return NewComposite(NewBrew(runner), NewMAS(runner))
-
+	case domain.OSWindows:
+		return NewWinget(runner)
 	case domain.OSLinux:
 		var managers []port.PackageManager
 		switch platform.PackageManager {
