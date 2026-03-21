@@ -3,6 +3,7 @@ package pkgmgr
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
@@ -28,13 +29,17 @@ func (c *CompositeManager) SubManagers() []port.PackageManager {
 	return c.managers
 }
 
-func (c *CompositeManager) IsAvailable(ctx context.Context) bool {
+func (c *CompositeManager) IsAvailable(ctx context.Context) error {
+	var errs []string
 	for _, m := range c.managers {
-		if m.IsAvailable(ctx) {
-			return true
+		if err := m.IsAvailable(ctx); err != nil {
+			errs = append(errs, err.Error())
 		}
 	}
-	return false
+	if len(errs) > 0 {
+		return fmt.Errorf("package managers unavailable: %s", strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 func (c *CompositeManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {

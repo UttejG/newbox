@@ -22,33 +22,33 @@ func TestMASManager_IsAvailable(t *testing.T) {
 	tests := []struct {
 		name    string
 		results []*port.RunResult
-		wantErr error
-		want    bool
+		runErr  error
+		wantErr bool
 	}{
 		{
 			name:    "mas available",
 			results: []*port.RunResult{{ExitCode: 0}},
-			want:    true,
+			wantErr: false,
 		},
 		{
 			name:    "mas not available (exit code 1)",
 			results: []*port.RunResult{{ExitCode: 1}},
-			want:    false,
+			wantErr: true,
 		},
 		{
 			name:    "mas not available (run error)",
-			wantErr: errors.New("command not found"),
-			want:    false,
+			runErr:  errors.New("command not found"),
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fake := &testutil.FakeRunner{Results: tt.results, Err: tt.wantErr}
+			fake := &testutil.FakeRunner{Results: tt.results, Err: tt.runErr}
 			m := pkgmgr.NewMAS(fake)
-			got := m.IsAvailable(context.Background())
-			if got != tt.want {
-				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
+			err := m.IsAvailable(context.Background())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsAvailable() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if len(fake.Calls) != 1 {
 				t.Fatalf("expected 1 call, got %d", len(fake.Calls))
@@ -65,6 +65,7 @@ func TestMASManager_IsInstalled(t *testing.T) {
 		name    string
 		ref     domain.PackageRef
 		results []*port.RunResult
+		runErr  error
 		want    bool
 		wantErr bool
 	}{
@@ -91,11 +92,18 @@ func TestMASManager_IsInstalled(t *testing.T) {
 			results: []*port.RunResult{{ExitCode: 0, DryRun: true, Stdout: "[dry-run]"}},
 			want:    false,
 		},
+		{
+			name:    "mas list error propagated",
+			ref:     domain.PackageRef{MAS: "409203825"},
+			runErr:  errors.New("not signed in"),
+			wantErr: true,
+			want:    false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fake := &testutil.FakeRunner{Results: tt.results}
+			fake := &testutil.FakeRunner{Results: tt.results, Err: tt.runErr}
 			m := pkgmgr.NewMAS(fake)
 			got, err := m.IsInstalled(context.Background(), tt.ref)
 			if tt.wantErr && err == nil {

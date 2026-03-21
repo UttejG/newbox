@@ -24,9 +24,15 @@ func (b *BrewManager) CanHandle(ref domain.PackageRef) bool {
 	return ref.Formula != "" || ref.Cask != ""
 }
 
-func (b *BrewManager) IsAvailable(ctx context.Context) bool {
+func (b *BrewManager) IsAvailable(ctx context.Context) error {
 	res, err := b.runner.Run(ctx, "brew", []string{"--version"})
-	return err == nil && res.ExitCode == 0
+	if err != nil {
+		return fmt.Errorf("brew: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("brew: exited with code %d", res.ExitCode)
+	}
+	return nil
 }
 
 func (b *BrewManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {

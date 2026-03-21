@@ -76,24 +76,28 @@ func main() {
 
 	// Wire state store for resume support.
 	var store port.StateStore
-	if fs, err := statestore.NewFileStore(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: state store unavailable: %v\n", err)
-	} else {
-		store = fs
+	if !*dryRun {
+		if fs, err := statestore.NewFileStore(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: state store unavailable: %v\n", err)
+		} else {
+			store = fs
+		}
 	}
 
 	// Offer resume if stdin is a TTY and a previous install was interrupted.
-	if fi, stdinErr := os.Stdin.Stat(); stdinErr == nil && (fi.Mode()&os.ModeCharDevice) != 0 {
-		if store != nil && store.Exists() {
-			savedState, _ := store.Load()
-			if savedState != nil && len(savedState.CompletedIDs) > 0 {
-				fmt.Fprintf(os.Stderr, "\nPrevious install found (%d tools completed). Resume? [Y/n]: ",
-					len(savedState.CompletedIDs))
-				scanner := bufio.NewScanner(os.Stdin)
-				scanner.Scan()
-				answer := strings.TrimSpace(scanner.Text())
-				if strings.EqualFold(answer, "n") {
-					_ = store.Clear()
+	if !*dryRun {
+		if fi, stdinErr := os.Stdin.Stat(); stdinErr == nil && (fi.Mode()&os.ModeCharDevice) != 0 {
+			if store != nil && store.Exists() {
+				savedState, _ := store.Load()
+				if savedState != nil && len(savedState.CompletedIDs) > 0 {
+					fmt.Fprintf(os.Stderr, "\nPrevious install found (%d tools completed). Resume? [Y/n]: ",
+						len(savedState.CompletedIDs))
+					scanner := bufio.NewScanner(os.Stdin)
+					scanner.Scan()
+					answer := strings.TrimSpace(scanner.Text())
+					if strings.EqualFold(answer, "n") {
+						_ = store.Clear()
+					}
 				}
 			}
 		}
@@ -111,7 +115,7 @@ func main() {
 		brew := pkgmgr.NewBrew(cmdRunner)
 		mas := pkgmgr.NewMAS(cmdRunner)
 		composite := pkgmgr.NewComposite(brew, mas)
-		installSvc = service.NewInstallService(composite, syschecker, store, *dryRun)
+		installSvc = service.NewInstallService(composite, syschecker, store, *dryRun, os.Stderr)
 	}
 
 	// Non-interactive summary mode.

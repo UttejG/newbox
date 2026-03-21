@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"time"
 
@@ -17,11 +17,15 @@ type InstallService struct {
 	checker port.SystemChecker
 	store   port.StateStore // may be nil for no-resume mode
 	dryRun  bool
+	warn    io.Writer
 }
 
 // NewInstallService creates an InstallService. Pass nil for store to disable resume support.
-func NewInstallService(pkgMgr port.PackageManager, checker port.SystemChecker, store port.StateStore, dryRun bool) *InstallService {
-	return &InstallService{pkgMgr: pkgMgr, checker: checker, store: store, dryRun: dryRun}
+func NewInstallService(pkgMgr port.PackageManager, checker port.SystemChecker, store port.StateStore, dryRun bool, warn io.Writer) *InstallService {
+	if warn == nil {
+		warn = io.Discard
+	}
+	return &InstallService{pkgMgr: pkgMgr, checker: checker, store: store, dryRun: dryRun, warn: warn}
 }
 
 // compositeManager is an optional capability for package managers that wrap sub-managers.
@@ -47,14 +51,14 @@ func (s *InstallService) Preflight(ctx context.Context) (*domain.PreflightResult
 	if cm, ok := s.pkgMgr.(compositeManager); ok {
 		allOK := true
 		for _, sub := range cm.SubManagers() {
-			if err := s.checker.CheckPackageManager(ctx, sub.Name()); err != nil {
+			if err := sub.IsAvailable(ctx); err != nil {
 				result.Errors = append(result.Errors, err.Error())
 				allOK = false
 			}
 		}
 		result.PackageManagerOK = allOK
 	} else {
-		if err := s.checker.CheckPackageManager(ctx, s.pkgMgr.Name()); err != nil {
+		if err := s.pkgMgr.IsAvailable(ctx); err != nil {
 			result.Errors = append(result.Errors, err.Error())
 		} else {
 			result.PackageManagerOK = true
@@ -109,7 +113,7 @@ func (s *InstallService) Plan(ctx context.Context, selection *domain.UserSelecti
 func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, progress chan<- domain.ProgressEvent) error {
 	// Load or initialise state for resume tracking.
 	var state *domain.InstallState
-	if s.store != nil {
+	if !s.dryRun && s.store != nil {
 		loaded, err := s.store.Load()
 		if err == nil && loaded != nil {
 			state = loaded
@@ -169,9 +173,9 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 				}
 			}
 			state.FailedIDs = filtered
-			if s.store != nil {
+			if !s.dryRun && s.store != nil {
 				if err := s.store.Save(state); err != nil {
-					fmt.Fprintf(os.Stderr, "warning: failed to save progress: %v\n", err)
+					fmt.Fprintf(s.warn, "warning: failed to save progress: %v\n", err)
 				}
 			}
 		}
@@ -182,7 +186,7 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 	}
 
 	// Clear persisted state only when all tools succeeded so resume still works.
-	if s.store != nil && len(failedTools) == 0 {
+	if !s.dryRun && s.store != nil && len(failedTools) == 0 {
 		_ = s.store.Clear()
 	}
 

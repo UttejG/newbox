@@ -15,6 +15,7 @@ type MASManager struct {
 	runner       port.CommandRunner
 	cacheOnce    sync.Once
 	installedIDs map[string]struct{}
+	cacheErr     error
 }
 
 // NewMAS creates a MASManager backed by the given CommandRunner.
@@ -26,16 +27,23 @@ func (m *MASManager) Name() string { return "mas" }
 
 func (m *MASManager) CanHandle(ref domain.PackageRef) bool { return ref.MAS != "" }
 
-func (m *MASManager) IsAvailable(ctx context.Context) bool {
+func (m *MASManager) IsAvailable(ctx context.Context) error {
 	res, err := m.runner.Run(ctx, "mas", []string{"version"})
-	return err == nil && res.ExitCode == 0
+	if err != nil {
+		return fmt.Errorf("mas: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("mas: exited with code %d", res.ExitCode)
+	}
+	return nil
 }
 
 func (m *MASManager) loadCache(ctx context.Context) {
 	m.cacheOnce.Do(func() {
-		res, err := m.runner.Run(ctx, "mas", []string{"list"})
 		m.installedIDs = make(map[string]struct{})
+		res, err := m.runner.Run(ctx, "mas", []string{"list"})
 		if err != nil {
+			m.cacheErr = fmt.Errorf("mas list: %w", err)
 			return
 		}
 		if res.DryRun {
@@ -55,6 +63,9 @@ func (m *MASManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 		return false, nil
 	}
 	m.loadCache(ctx)
+	if m.cacheErr != nil {
+		return false, m.cacheErr
+	}
 	_, found := m.installedIDs[ref.MAS]
 	return found, nil
 }
