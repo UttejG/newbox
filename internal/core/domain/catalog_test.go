@@ -80,7 +80,7 @@ func TestCategory_FilteredTools(t *testing.T) {
 		Name: "💬 Messaging",
 		Tools: []domain.Tool{
 			{Name: "Signal", MacOS: &domain.PackageRef{Cask: "signal"}, Linux: &domain.PackageRef{Apt: "signal-desktop"}},
-			{Name: "iMessage", MacOS: &domain.PackageRef{MAS: "12345"}}, // macOS only
+			{Name: "iMessage", MacOS: &domain.PackageRef{MAS: "12345"}},        // macOS only
 			{Name: "WinTool", Windows: &domain.PackageRef{Winget: "Win.Tool"}}, // windows only
 		},
 	}

@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/uttejg/newbox/internal/core/domain"
@@ -15,11 +17,20 @@ type InstallService struct {
 	checker port.SystemChecker
 	store   port.StateStore // may be nil for no-resume mode
 	dryRun  bool
+	warn    io.Writer
 }
 
 // NewInstallService creates an InstallService. Pass nil for store to disable resume support.
-func NewInstallService(pkgMgr port.PackageManager, checker port.SystemChecker, store port.StateStore, dryRun bool) *InstallService {
-	return &InstallService{pkgMgr: pkgMgr, checker: checker, store: store, dryRun: dryRun}
+func NewInstallService(pkgMgr port.PackageManager, checker port.SystemChecker, store port.StateStore, dryRun bool, warn io.Writer) *InstallService {
+	if warn == nil {
+		warn = io.Discard
+	}
+	return &InstallService{pkgMgr: pkgMgr, checker: checker, store: store, dryRun: dryRun, warn: warn}
+}
+
+// compositeManager is an optional capability for package managers that wrap sub-managers.
+type compositeManager interface {
+	SubManagers() []port.PackageManager
 }
 
 func (s *InstallService) Preflight(ctx context.Context) (*domain.PreflightResult, error) {
@@ -37,10 +48,26 @@ func (s *InstallService) Preflight(ctx context.Context) (*domain.PreflightResult
 		result.DiskSpaceOK = true
 	}
 
-	if err := s.checker.CheckPackageManager(ctx, s.pkgMgr.Name()); err != nil {
-		result.Errors = append(result.Errors, err.Error())
+	if cm, ok := s.pkgMgr.(compositeManager); ok {
+		subs := cm.SubManagers()
+		if len(subs) == 0 {
+			result.Errors = append(result.Errors, "no supported package manager found for this platform")
+		} else {
+			allOK := true
+			for _, sub := range subs {
+				if err := sub.IsAvailable(ctx); err != nil {
+					result.Errors = append(result.Errors, err.Error())
+					allOK = false
+				}
+			}
+			result.PackageManagerOK = allOK
+		}
 	} else {
-		result.PackageManagerOK = true
+		if err := s.pkgMgr.IsAvailable(ctx); err != nil {
+			result.Errors = append(result.Errors, err.Error())
+		} else {
+			result.PackageManagerOK = true
+		}
 	}
 
 	return result, nil
@@ -63,7 +90,7 @@ func (s *InstallService) Plan(ctx context.Context, selection *domain.UserSelecti
 		step := domain.ExecutionStep{
 			Tool:    tool,
 			Ref:     *ref,
-			Command: s.buildCommandString(ref),
+			Command: s.pkgMgr.BuildCommand(*ref),
 		}
 
 		if s.dryRun {
@@ -91,7 +118,7 @@ func (s *InstallService) Plan(ctx context.Context, selection *domain.UserSelecti
 func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, progress chan<- domain.ProgressEvent) error {
 	// Load or initialise state for resume tracking.
 	var state *domain.InstallState
-	if s.store != nil {
+	if !s.dryRun && s.store != nil {
 		loaded, err := s.store.Load()
 		if err == nil && loaded != nil {
 			state = loaded
@@ -106,8 +133,16 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 
 	steps := plan.PendingSteps()
 	total := len(steps)
+	var failedTools []string
 
 	for i, step := range steps {
+		// Stop launching new installs if the caller cancelled.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		// Resume: skip tools already completed in a previous run.
 		if state.IsCompleted(step.Tool.Name) {
 			if progress != nil {
@@ -131,11 +166,22 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 			step.Status = domain.StatusFailed
 			step.Error = err
 			state.FailedIDs = append(state.FailedIDs, step.Tool.Name)
+			failedTools = append(failedTools, step.Tool.Name)
 		} else {
 			step.Status = domain.StatusDone
 			state.MarkCompleted(step.Tool.Name)
-			if s.store != nil {
-				_ = s.store.Save(state)
+			// Remove from FailedIDs if present (fix stale entries on retry).
+			filtered := state.FailedIDs[:0]
+			for _, fid := range state.FailedIDs {
+				if fid != step.Tool.Name {
+					filtered = append(filtered, fid)
+				}
+			}
+			state.FailedIDs = filtered
+			if !s.dryRun && s.store != nil {
+				if err := s.store.Save(state); err != nil {
+					fmt.Fprintf(s.warn, "warning: failed to save progress: %v\n", err)
+				}
 			}
 		}
 
@@ -144,23 +190,13 @@ func (s *InstallService) Execute(ctx context.Context, plan *domain.InstallPlan, 
 		}
 	}
 
-	// Clear persisted state once everything has run.
-	if s.store != nil {
+	// Clear persisted state only when all tools succeeded so resume still works.
+	if !s.dryRun && s.store != nil && len(failedTools) == 0 {
 		_ = s.store.Clear()
 	}
 
+	if len(failedTools) > 0 {
+		return fmt.Errorf("%d tool(s) failed to install: %s", len(failedTools), strings.Join(failedTools, ", "))
+	}
 	return nil
-}
-
-func (s *InstallService) buildCommandString(ref *domain.PackageRef) string {
-	if ref.Cask != "" {
-		return "brew install --cask " + ref.Cask
-	}
-	if ref.Formula != "" {
-		return "brew install " + ref.Formula
-	}
-	if ref.MAS != "" {
-		return "mas install " + ref.MAS
-	}
-	return ""
 }

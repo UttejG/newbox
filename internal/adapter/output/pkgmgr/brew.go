@@ -2,6 +2,7 @@ package pkgmgr
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
@@ -19,9 +20,19 @@ func NewBrew(runner port.CommandRunner) *BrewManager {
 
 func (b *BrewManager) Name() string { return "brew" }
 
-func (b *BrewManager) IsAvailable(ctx context.Context) bool {
+func (b *BrewManager) CanHandle(ref domain.PackageRef) bool {
+	return ref.Formula != "" || ref.Cask != ""
+}
+
+func (b *BrewManager) IsAvailable(ctx context.Context) error {
 	res, err := b.runner.Run(ctx, "brew", []string{"--version"})
-	return err == nil && res.ExitCode == 0
+	if err != nil {
+		return fmt.Errorf("brew: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("brew: exited with code %d", res.ExitCode)
+	}
+	return nil
 }
 
 func (b *BrewManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {
@@ -40,8 +51,13 @@ func (b *BrewManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (b
 	if res != nil && res.DryRun {
 		return false, nil
 	}
-	if err != nil || (res != nil && res.ExitCode != 0) {
-		return false, nil // not installed
+	if res != nil && res.ExitCode != 0 {
+		// brew list exits non-zero when the formula/cask is not installed — not an error.
+		return false, nil
+	}
+	if err != nil {
+		// Command failed to execute entirely (brew not on PATH, context cancelled, etc.).
+		return false, fmt.Errorf("checking %s: %w", ref.Formula+ref.Cask, err)
 	}
 	return true, nil
 }
@@ -49,7 +65,7 @@ func (b *BrewManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (b
 func (b *BrewManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
 	args := b.installArgs(ref)
 	if args == nil {
-		return nil, nil
+		return nil, fmt.Errorf("brew: no formula or cask in package ref for %q", ref.Formula+ref.Cask)
 	}
 	return b.runner.Run(ctx, "brew", args)
 }
@@ -62,4 +78,15 @@ func (b *BrewManager) installArgs(ref domain.PackageRef) []string {
 		return []string{"install", ref.Formula}
 	}
 	return nil
+}
+
+// BuildCommand returns the brew install command string for plan display.
+func (b *BrewManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Cask != "" {
+		return "brew install --cask " + ref.Cask
+	}
+	if ref.Formula != "" {
+		return "brew install " + ref.Formula
+	}
+	return ""
 }

@@ -23,9 +23,14 @@ type RunResult struct {
 // PackageManager handles installing packages for a specific OS.
 type PackageManager interface {
 	Name() string
-	IsAvailable(ctx context.Context) bool
+	// CanHandle reports whether this manager can install the given ref.
+	CanHandle(ref domain.PackageRef) bool
+	IsAvailable(ctx context.Context) error
 	IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error)
 	Install(ctx context.Context, ref domain.PackageRef) (*RunResult, error)
+	// BuildCommand returns the shell command string for the given ref (used for
+	// plan display and dry-run output). Returns "" if the ref is unsupported.
+	BuildCommand(ref domain.PackageRef) string
 }
 
 // SystemChecker runs pre-flight checks.

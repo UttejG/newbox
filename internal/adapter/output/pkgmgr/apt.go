@@ -21,9 +21,24 @@ func NewApt(runner port.CommandRunner) *AptManager {
 
 func (a *AptManager) Name() string { return "apt" }
 
-func (a *AptManager) IsAvailable(ctx context.Context) bool {
+func (a *AptManager) CanHandle(ref domain.PackageRef) bool { return ref.Apt != "" }
+
+func (a *AptManager) IsAvailable(ctx context.Context) error {
 	res, err := a.runner.Run(ctx, "apt-get", []string{"--version"})
-	return err == nil && res.ExitCode == 0
+	if err != nil {
+		return fmt.Errorf("apt-get: %w", err)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("apt-get: exited with code %d", res.ExitCode)
+	}
+	return nil
+}
+
+func (a *AptManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.Apt == "" {
+		return ""
+	}
+	return "apt-get install -y " + ref.Apt
 }
 
 func (a *AptManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bool, error) {
@@ -31,11 +46,16 @@ func (a *AptManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 		return false, nil
 	}
 	res, err := a.runner.Run(ctx, "dpkg-query", []string{"-W", "-f=${Status}", ref.Apt})
-	if err != nil {
+	if res != nil && res.DryRun {
 		return false, nil
 	}
-	if res.DryRun {
+	if res != nil && res.ExitCode != 0 {
+		// dpkg-query exits non-zero when the package is not installed — not an error.
 		return false, nil
+	}
+	if err != nil {
+		// Command failed to execute entirely (binary not on PATH, context cancelled, etc.).
+		return false, fmt.Errorf("checking %s: %w", ref.Apt, err)
 	}
 	return strings.Contains(res.Stdout, "install ok installed"), nil
 }

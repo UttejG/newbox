@@ -21,17 +21,17 @@ func TestDnfManager_IsAvailable(t *testing.T) {
 	tests := []struct {
 		name    string
 		results []*port.RunResult
-		want    bool
+		wantErr bool
 	}{
 		{
 			name:    "dnf available",
 			results: []*port.RunResult{{ExitCode: 0}},
-			want:    true,
+			wantErr: false,
 		},
 		{
 			name:    "dnf not available",
 			results: []*port.RunResult{{ExitCode: 1}},
-			want:    false,
+			wantErr: true,
 		},
 	}
 
@@ -40,8 +40,8 @@ func TestDnfManager_IsAvailable(t *testing.T) {
 			fake := &testutil.FakeRunner{Results: tt.results}
 			d := pkgmgr.NewDnf(fake)
 			got := d.IsAvailable(context.Background())
-			if got != tt.want {
-				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
+			if (got != nil) != tt.wantErr {
+				t.Errorf("IsAvailable() error = %v, wantErr %v", got, tt.wantErr)
 			}
 			if len(fake.Calls) != 1 {
 				t.Fatalf("expected 1 call, got %d", len(fake.Calls))

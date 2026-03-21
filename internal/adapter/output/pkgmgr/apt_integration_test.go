@@ -12,7 +12,7 @@ import (
 
 func TestApt_Integration_IsAvailable(t *testing.T) {
 	apt := pkgmgr.NewApt(&runner.ExecRunner{})
-	if !apt.IsAvailable(context.Background()) {
+	if err := apt.IsAvailable(context.Background()); err != nil {
 		t.Skip("apt not available")
 	}
 }

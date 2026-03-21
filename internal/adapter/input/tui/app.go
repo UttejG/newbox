@@ -22,6 +22,9 @@ const (
 	screenDone
 )
 
+// installFinished is sent as a tea.Msg when InstallService.Execute completes.
+type installFinished struct{ err error }
+
 // AppModel is the root Bubbletea model. It owns all screen state and handles transitions.
 type AppModel struct {
 	current screen
@@ -30,6 +33,9 @@ type AppModel struct {
 	catalogService port.CatalogService
 	installSvc     port.InstallService
 	dryRun         bool
+
+	// cancelInstall cancels any in-progress installation goroutine.
+	cancelInstall context.CancelFunc
 
 	// Screen models (created lazily)
 	welcome      screens.WelcomeModel
@@ -65,8 +71,11 @@ func (m *AppModel) Init() tea.Cmd {
 }
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle global quit
+	// Handle global quit — cancel any in-progress install before exiting.
 	if km, ok := msg.(tea.KeyMsg); ok && (km.String() == "ctrl+c") {
+		if m.cancelInstall != nil {
+			m.cancelInstall()
+		}
 		return m, tea.Quit
 	}
 
@@ -112,7 +121,6 @@ func (m *AppModel) View() string {
 }
 
 func (m *AppModel) updateWelcome(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
 	updated, cmd := m.welcome.Update(msg)
 	m.welcome = updated.(screens.WelcomeModel)
 
@@ -123,6 +131,7 @@ func (m *AppModel) updateWelcome(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) transitionToProfile() (tea.Model, tea.Cmd) {
+	m.err = nil
 	profiles, err := m.catalogService.GetAllProfiles()
 	if err != nil {
 		m.err = err
@@ -150,6 +159,7 @@ func (m *AppModel) updateProfile(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) transitionToCategories() (tea.Model, tea.Cmd) {
+	m.err = nil
 	cats, err := m.catalogService.GetCategories(m.platform.OS)
 	if err != nil {
 		m.err = err
@@ -224,15 +234,25 @@ func (m *AppModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 	if _, ok := msg.(screens.ConfirmBack); ok {
-		return m.transitionToTools()
+		// If we skipped tools because no categories were selected,
+		// go back to categories instead of looping to confirm again.
+		if len(m.selectedCategories) == 0 {
+			return m.transitionToCategories()
+		}
+		// Reuse the existing ToolsModel so the user's checkbox state is preserved.
+		m.current = screenTools
+		return m, m.tools.Init()
 	}
 	return m, cmd
 }
 
 func (m *AppModel) transitionToInstall() (tea.Model, tea.Cmd) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	m.cancelInstall = cancel
+
 	plan, err := m.installSvc.Plan(ctx, m.selection)
 	if err != nil {
+		cancel()
 		m.err = err
 		return m, nil
 	}

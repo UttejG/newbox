@@ -9,9 +9,9 @@ const (
 	StatusPending    InstallStatus = "pending"
 	StatusInstalling InstallStatus = "installing"
 	StatusDone       InstallStatus = "done"
-	StatusSkipped    InstallStatus = "skipped"  // already installed
+	StatusSkipped    InstallStatus = "skipped" // already installed
 	StatusFailed     InstallStatus = "failed"
-	StatusDryRun     InstallStatus = "dry_run"  // would install (dry-run mode)
+	StatusDryRun     InstallStatus = "dry_run" // would install (dry-run mode)
 )
 
 // ExecutionStep represents one installation action.
@@ -62,10 +62,10 @@ type ProgressEvent struct {
 
 // InstallState persists between runs for resume support.
 type InstallState struct {
-	CompletedIDs []string  `json:"completed_ids"` // tool names already installed
-	FailedIDs    []string  `json:"failed_ids"`    // tool names that failed
-	StartedAt    time.Time `json:"started_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	CompletedIDs []string
+	FailedIDs    []string
+	StartedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func (s *InstallState) IsCompleted(toolID string) bool {

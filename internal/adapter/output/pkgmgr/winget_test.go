@@ -23,19 +23,19 @@ func TestWingetManager_IsAvailable(t *testing.T) {
 		name    string
 		results []*port.RunResult
 		err     error
-		want    bool
+		wantErr bool
 	}{
-		{"available", []*port.RunResult{{ExitCode: 0}}, nil, true},
-		{"not available", []*port.RunResult{{ExitCode: 1}}, nil, false},
-		{"error", nil, fmt.Errorf("not found"), false},
+		{"available", []*port.RunResult{{ExitCode: 0}}, nil, false},
+		{"not available", []*port.RunResult{{ExitCode: 1}}, nil, true},
+		{"error", nil, fmt.Errorf("not found"), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := &testutil.FakeRunner{Results: tt.results, Err: tt.err}
 			w := pkgmgr.NewWinget(fake)
-			got := w.IsAvailable(context.Background())
-			if got != tt.want {
-				t.Errorf("IsAvailable() = %v, want %v", got, tt.want)
+			err := w.IsAvailable(context.Background())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsAvailable() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
