@@ -46,6 +46,15 @@ func (c *CompositeManager) Install(ctx context.Context, ref domain.PackageRef) (
 	return mgr.Install(ctx, ref)
 }
 
+// BuildCommand delegates to the appropriate sub-manager for plan display.
+func (c *CompositeManager) BuildCommand(ref domain.PackageRef) string {
+	mgr := c.managerFor(ref)
+	if mgr == nil {
+		return ""
+	}
+	return mgr.BuildCommand(ref)
+}
+
 // managerFor selects the right manager based on which fields are set in ref.
 func (c *CompositeManager) managerFor(ref domain.PackageRef) port.PackageManager {
 	if ref.MAS != "" {

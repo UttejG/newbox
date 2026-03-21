@@ -148,7 +148,7 @@ func TestBrewManager_Install(t *testing.T) {
 			wantArgs: []string{"install", "--cask", "signal"},
 		},
 		{
-			name:    "empty ref does nothing",
+			name:    "empty ref returns error",
 			ref:     domain.PackageRef{},
 			wantNil: true,
 		},
@@ -159,14 +159,17 @@ func TestBrewManager_Install(t *testing.T) {
 			fake := &testutil.FakeRunner{}
 			b := pkgmgr.NewBrew(fake)
 			res, err := b.Install(context.Background(), tt.ref)
-			if err != nil {
-				t.Fatalf("Install() error = %v", err)
-			}
 			if tt.wantNil {
+				if err == nil {
+					t.Fatal("expected error for empty ref, got nil")
+				}
 				if res != nil {
 					t.Error("expected nil result for empty ref")
 				}
 				return
+			}
+			if err != nil {
+				t.Fatalf("Install() error = %v", err)
 			}
 			if len(fake.Calls) != 1 {
 				t.Fatalf("expected 1 call, got %d", len(fake.Calls))

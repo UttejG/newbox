@@ -46,3 +46,11 @@ func (m *MASManager) Install(ctx context.Context, ref domain.PackageRef) (*port.
 	}
 	return m.runner.Run(ctx, "mas", []string{"install", ref.MAS})
 }
+
+// BuildCommand returns the mas install command string for plan display.
+func (m *MASManager) BuildCommand(ref domain.PackageRef) string {
+	if ref.MAS == "" {
+		return ""
+	}
+	return "mas install " + ref.MAS
+}
