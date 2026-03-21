@@ -46,11 +46,16 @@ func (a *AptManager) IsInstalled(ctx context.Context, ref domain.PackageRef) (bo
 		return false, nil
 	}
 	res, err := a.runner.Run(ctx, "dpkg-query", []string{"-W", "-f=${Status}", ref.Apt})
-	if err != nil {
+	if res != nil && res.DryRun {
 		return false, nil
 	}
-	if res.DryRun {
+	if res != nil && res.ExitCode != 0 {
+		// dpkg-query exits non-zero when the package is not installed — not an error.
 		return false, nil
+	}
+	if err != nil {
+		// Command failed to execute entirely (binary not on PATH, context cancelled, etc.).
+		return false, fmt.Errorf("checking %s: %w", ref.Apt, err)
 	}
 	return strings.Contains(res.Stdout, "install ok installed"), nil
 }

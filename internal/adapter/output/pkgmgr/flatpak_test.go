@@ -64,7 +64,7 @@ func TestFlatpakManager_IsInstalled(t *testing.T) {
 		{
 			name:    "installed",
 			ref:     domain.PackageRef{Flatpak: "org.signal.Signal"},
-			results: []*port.RunResult{{ExitCode: 0, Stdout: "Signal\torg.signal.Signal\t1.0"}},
+			results: []*port.RunResult{{ExitCode: 0, Stdout: "org.signal.Signal\n"}},
 			want:    true,
 		},
 		{

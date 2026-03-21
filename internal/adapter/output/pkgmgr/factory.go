@@ -1,6 +1,8 @@
 package pkgmgr
 
 import (
+	"os/exec"
+
 	"github.com/uttejg/newbox/internal/core/domain"
 	"github.com/uttejg/newbox/internal/core/port"
 )
@@ -23,7 +25,11 @@ func NewForPlatform(platform *domain.Platform, runner port.CommandRunner) port.P
 		case domain.PkgMgrPacman:
 			managers = append(managers, NewPacman(runner))
 		}
-		managers = append(managers, NewFlatpak(runner))
+		// Only include flatpak if it is actually installed on the system.
+		// Flatpak is a fallback; its absence should not block preflight.
+		if _, err := exec.LookPath("flatpak"); err == nil {
+			managers = append(managers, NewFlatpak(runner))
+		}
 		return NewComposite(managers...)
 
 	default:

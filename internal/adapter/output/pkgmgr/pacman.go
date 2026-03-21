@@ -45,13 +45,17 @@ func (p *PacmanManager) IsInstalled(ctx context.Context, ref domain.PackageRef) 
 		return false, nil
 	}
 	res, err := p.runner.Run(ctx, "pacman", []string{"-Q", ref.Pacman})
+	if res != nil && res.DryRun {
+		return false, nil
+	}
+	if res != nil && res.ExitCode != 0 {
+		// pacman -Q exits non-zero when the package is not installed — not an error.
+		return false, nil
+	}
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("checking %s: %w", ref.Pacman, err)
 	}
-	if res.DryRun {
-		return false, nil
-	}
-	return res.ExitCode == 0, nil
+	return true, nil
 }
 
 func (p *PacmanManager) Install(ctx context.Context, ref domain.PackageRef) (*port.RunResult, error) {
