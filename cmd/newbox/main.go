@@ -24,37 +24,40 @@ import (
 	"github.com/uttejg/newbox/internal/core/service"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
-	// Find if 'list' is the first non-flag argument, scanning past any flags so
-	// that e.g. "newbox --dry-run list" is handled correctly.
-	listIdx := -1
-	for i, arg := range os.Args[1:] {
-		if arg == "list" {
-			listIdx = i + 1 // index in os.Args
-			break
-		}
-		if !strings.HasPrefix(arg, "-") {
-			break // first non-flag arg is not "list"
-		}
+	// Parse all global flags first so --version is always honoured, even when
+	// followed by a subcommand (e.g. "newbox --version list").
+	dryRun := flag.Bool("dry-run", false, "Simulate installation without executing commands")
+	summary := flag.Bool("summary", false, "Print a text summary of the install plan (requires --dry-run)")
+	jsonOutput := flag.Bool("json", false, "Output as JSON (use with --dry-run)")
+	showVersion := flag.Bool("version", false, "Print version information")
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("newbox %s (commit: %s, built: %s)\n", version, commit, date)
+		return
 	}
-	if listIdx >= 0 {
+
+	// Check for 'list' subcommand in the remaining (non-flag) arguments.
+	if args := flag.Args(); len(args) > 0 && args[0] == "list" {
 		d := &detector.SystemDetector{}
 		platform, err := d.Detect()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error detecting platform: %v\n", err)
 			os.Exit(1)
 		}
-		if err := runList(platform, os.Args[listIdx+1:]); err != nil {
+		if err := runList(platform, args[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 		return
 	}
-
-	dryRun := flag.Bool("dry-run", false, "Simulate installation without executing commands")
-	summary := flag.Bool("summary", false, "Print a text summary of the install plan (requires --dry-run)")
-	jsonOutput := flag.Bool("json", false, "Output as JSON (use with --dry-run)")
-	flag.Parse()
 
 	if *summary && !*dryRun {
 		fmt.Fprintln(os.Stderr, "Error: --summary requires --dry-run")
