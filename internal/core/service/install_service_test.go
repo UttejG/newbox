@@ -52,15 +52,19 @@ func TestInstallService_Preflight_AllOK(t *testing.T) {
 	if len(result.Errors) != 0 {
 		t.Errorf("expected no errors, got %v", result.Errors)
 	}
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected no warnings, got %v", result.Warnings)
+	}
 }
 
 func TestInstallService_Preflight_Failures(t *testing.T) {
 	tests := []struct {
-		name       string
-		checker    testutil.FakeSystemChecker
-		pkgAvail   bool
-		wantErrors int
-		wantOK     bool
+		name         string
+		checker      testutil.FakeSystemChecker
+		pkgAvail     bool
+		wantErrors   int
+		wantWarnings int
+		wantOK       bool
 	}{
 		{
 			name:       "internet failure",
@@ -78,16 +82,17 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 		},
 		{
 			name:       "pkgmgr failure",
-			pkgAvail:   false, // package manager not available
+			pkgAvail:   false,
 			wantErrors: 1,
 			wantOK:     false,
 		},
 		{
-			name:       "sudo failure",
-			checker:    testutil.FakeSystemChecker{SudoErr: errTest},
-			pkgAvail:   true,
-			wantErrors: 1,
-			wantOK:     true, // SudoOK is not part of OK()
+			name:         "sudo failure",
+			checker:      testutil.FakeSystemChecker{SudoErr: errTest},
+			pkgAvail:     true,
+			wantErrors:   0,
+			wantWarnings: 1,
+			wantOK:       true, // sudo is non-fatal; SudoOK is not part of OK()
 		},
 		{
 			name:       "all failures",
@@ -112,6 +117,9 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 			}
 			if len(result.Errors) != tt.wantErrors {
 				t.Errorf("Errors count = %d, want %d; got %v", len(result.Errors), tt.wantErrors, result.Errors)
+			}
+			if len(result.Warnings) != tt.wantWarnings {
+				t.Errorf("Warnings count = %d, want %d; got %v", len(result.Warnings), tt.wantWarnings, result.Warnings)
 			}
 			if result.OK() != tt.wantOK {
 				t.Errorf("OK() = %v, want %v", result.OK(), tt.wantOK)

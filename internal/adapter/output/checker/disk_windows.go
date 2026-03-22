@@ -10,6 +10,11 @@ import (
 	"unsafe"
 )
 
+var (
+	kernel32           = syscall.NewLazyDLL("kernel32.dll")
+	getDiskFreeSpaceEx = kernel32.NewProc("GetDiskFreeSpaceExW")
+)
+
 // CheckDiskSpace uses GetDiskFreeSpaceExW to check available disk space on Windows.
 func (c *SystemChecker) CheckDiskSpace(_ context.Context, minGB int) error {
 	home, err := os.UserHomeDir()
@@ -17,8 +22,9 @@ func (c *SystemChecker) CheckDiskSpace(_ context.Context, minGB int) error {
 		return fmt.Errorf("getting home directory: %w", err)
 	}
 
-	kernel32 := syscall.MustLoadDLL("kernel32.dll")
-	getDiskFreeSpaceEx := kernel32.MustFindProc("GetDiskFreeSpaceExW")
+	if err := getDiskFreeSpaceEx.Find(); err != nil {
+		return fmt.Errorf("GetDiskFreeSpaceExW not available: %w", err)
+	}
 
 	dirPtr, err := syscall.UTF16PtrFromString(home)
 	if err != nil {
