@@ -90,7 +90,10 @@ type PreflightResult struct {
 	DiskSpaceOK      bool
 	SudoOK           bool
 	PackageManagerOK bool
-	Errors           []string
+	// Errors holds fatal failures that block installation (internet, disk, package manager).
+	Errors []string
+	// Warnings holds non-fatal advisories (e.g. sudo credentials not cached).
+	Warnings []string
 }
 
 // OK returns true if all required checks passed.

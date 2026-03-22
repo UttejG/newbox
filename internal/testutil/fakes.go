@@ -76,6 +76,7 @@ type FakeSystemChecker struct {
 	InternetErr error
 	DiskErr     error
 	PkgMgrErr   error
+	SudoErr     error
 }
 
 func (f *FakeSystemChecker) CheckInternet(_ context.Context) error { return f.InternetErr }
@@ -85,6 +86,8 @@ func (f *FakeSystemChecker) CheckDiskSpace(_ context.Context, _ int) error { ret
 func (f *FakeSystemChecker) CheckPackageManager(_ context.Context, _ string) error {
 	return f.PkgMgrErr
 }
+
+func (f *FakeSystemChecker) CheckSudo(_ context.Context) error { return f.SudoErr }
 
 // FakeCatalogProvider implements port.CatalogProvider with in-memory data.
 type FakeCatalogProvider struct {
