@@ -36,6 +36,7 @@ type SystemChecker interface {
 	CheckInternet(ctx context.Context) error
 	CheckDiskSpace(ctx context.Context, minGB int) error
 	CheckPackageManager(ctx context.Context, name string) error
+	CheckSudo(ctx context.Context) error
 }
 
 // InstallService orchestrates installation.

@@ -46,6 +46,15 @@ func (s *InstallService) Preflight(ctx context.Context) (*domain.PreflightResult
 		result.Errors = append(result.Errors, fmt.Sprintf("package manager %q not available", s.pkgMgr.Name()))
 	}
 
+	// Sudo check: on Linux, apt/dnf/pacman require root; on macOS brew does not;
+	// on Windows winget handles elevation. CheckSudo returns nil on Windows and
+	// on macOS/Linux it runs `sudo -n true` (non-interactive).
+	if err := s.checker.CheckSudo(ctx); err != nil {
+		result.Errors = append(result.Errors, err.Error())
+	} else {
+		result.SudoOK = true
+	}
+
 	return result, nil
 }
 

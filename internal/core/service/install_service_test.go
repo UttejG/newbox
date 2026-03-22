@@ -43,6 +43,9 @@ func TestInstallService_Preflight_AllOK(t *testing.T) {
 	if !result.PackageManagerOK {
 		t.Error("expected PackageManagerOK")
 	}
+	if !result.SudoOK {
+		t.Error("expected SudoOK")
+	}
 	if !result.OK() {
 		t.Error("expected OK()")
 	}
@@ -78,6 +81,13 @@ func TestInstallService_Preflight_Failures(t *testing.T) {
 			pkgAvail:   false, // package manager not available
 			wantErrors: 1,
 			wantOK:     false,
+		},
+		{
+			name:       "sudo failure",
+			checker:    testutil.FakeSystemChecker{SudoErr: errTest},
+			pkgAvail:   true,
+			wantErrors: 1,
+			wantOK:     true, // SudoOK is not part of OK()
 		},
 		{
 			name:       "all failures",

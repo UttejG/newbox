@@ -27,6 +27,9 @@ jobs:
         run: make test
       - name: Build
         run: go build ./cmd/newbox
+      - name: Run integration tests (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: make test-integration
 
   release:
     name: Release
